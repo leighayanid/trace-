@@ -549,13 +549,34 @@ be `RepaintBoundary`-wrapped so their animation does not repaint the scroll view
 > - **Phase 0: complete.** Analyze clean, debug APK built.
 > - **Phase 1: complete.** Drift schema generated, parser at 21 passing tests,
 >   Quick Add + Add Entry + Today wired to live SQLite.
-> - Next: **Phase 2** (Timeline, Projects, Reading, Insights).
+> - **Phase 2: complete.** Timeline, Projects (+ creation), Reading (+ books and
+>   session logging), Insights with both custom-painted charts, More, About.
+> - Next: **Phase 3** (motion pass, dark-theme audit, profiling).
 >
-> Two deviations from this plan, both deliberate and both explained where they occur:
-> `riverpod_generator` and `riverpod_annotation` are installed but unused — providers are
-> written by hand because codegen would force a `build_runner` run on every provider edit, and
-> Drift already owns that build step. Remove them or adopt them, but do not leave it undecided
-> forever. Proof capture is not built (§7.4).
+> ### Deviations from the mockup, all deliberate
+>
+> - **"Open Project" button removed** from the project detail screen. There is no URL or path
+>   on a project to open, so the button would do nothing. Add a `url` field later if you want it
+>   back.
+> - **Proof capture not built** (§7.4). Git and screenshot capture need real integrations, and a
+>   row that does nothing is worse than no row.
+> - **Book covers are a typographic tile**, not an image. Covers need fetching or a file picker;
+>   neither exists yet, and a broken image frame is worse than an initial on navy.
+> - **Category colours in the donut are one navy stepped through four opacities**, not four
+>   hues — the brief rules out bright per-category colour.
+> - **"View all sessions" and "View notes" are inert.** They are visible because the counts they
+>   report are real, but the destination screens are Phase 3+.
+>
+> ### Known cleanups
+>
+> - `riverpod_generator` / `riverpod_annotation` are installed but unused — providers are
+>   hand-written to avoid a `build_runner` run per provider edit. Adopt or remove; do not leave
+>   it undecided forever.
+> - Four sheets (`NewProjectSheet`, `NewBookSheet`, `OneLineSheet`, `LogReadingSheet`) now
+>   duplicate the same container and field styling. Four is where extraction into a shared
+>   `SheetScaffold` + `TraceField` earns its keep.
+> - `TodayScreen._edit` fabricates a `ParsedEntry` from a stored row to reuse the form. It works,
+>   but a proper draft type would be honest.
 
 **Phase 0 — Foundation.** Install Flutter 3.47.2, `flutter create`, `git init`, bundle fonts, build
 the full theme (`colors/typography/spacing/motion`), GoRouter `StatefulShellRoute` with the five

@@ -9,12 +9,14 @@ import '../../core/parser/entry_parser.dart';
 import '../../core/parser/quantity_grammar.dart';
 import '../../shared/widgets/entry_row.dart';
 import '../../shared/widgets/mono_duration.dart';
+import '../../shared/widgets/press_scale.dart';
 import '../../shared/widgets/progress_track.dart';
 import '../../shared/widgets/section_label.dart';
 import '../../shared/widgets/trace_button.dart';
 import '../entries/add_entry_screen.dart';
 import '../entries/entry_providers.dart';
 import '../entries/entry_repository.dart';
+import 'one_line_sheet.dart';
 
 /// The home screen, and the most important one in the app.
 class TodayScreen extends ConsumerWidget {
@@ -243,18 +245,22 @@ class TodayScreen extends ConsumerWidget {
       children: [
         const SectionLabel('One line'),
         const SizedBox(height: TraceSpace.md),
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                hasNote ? note.body : 'One line about today.',
-                style: TraceText.body.copyWith(
-                  color: hasNote ? c.textPrimary : c.textSecondary,
+        PressScale(
+          onTap: () => OneLineSheet.show(context, initial: note?.body),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  hasNote ? note.body : 'One line about today.',
+                  style: TraceText.body.copyWith(
+                    color: hasNote ? c.textPrimary : c.textSecondary,
+                  ),
                 ),
               ),
-            ),
-            Icon(Icons.chevron_right_rounded, size: 18, color: c.textSecondary),
-          ],
+              Icon(Icons.chevron_right_rounded,
+                  size: 18, color: c.textSecondary),
+            ],
+          ),
         ),
       ],
     );

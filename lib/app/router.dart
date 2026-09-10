@@ -1,8 +1,10 @@
 import 'package:go_router/go_router.dart';
 
+import '../features/projects/projects_screen.dart';
+import '../features/settings/more_screen.dart';
 import '../features/splash/splash_screen.dart';
+import '../features/timeline/timeline_screen.dart';
 import '../features/today/today_screen.dart';
-import '../shared/widgets/phase_placeholder.dart';
 import 'shell.dart';
 
 /// Route paths, referenced by name rather than by string literal at call sites.
@@ -45,10 +47,7 @@ GoRouter createRouter() {
             routes: [
               GoRoute(
                 path: Routes.timeline,
-                builder: (context, state) => const PhasePlaceholder(
-                  title: 'Timeline',
-                  phase: 'PHASE 2',
-                ),
+                builder: (context, state) => const TimelineScreen(),
               ),
             ],
           ),
@@ -56,10 +55,7 @@ GoRouter createRouter() {
             routes: [
               GoRoute(
                 path: Routes.projects,
-                builder: (context, state) => const PhasePlaceholder(
-                  title: 'Projects',
-                  phase: 'PHASE 2',
-                ),
+                builder: (context, state) => const ProjectsScreen(),
               ),
             ],
           ),
@@ -67,10 +63,7 @@ GoRouter createRouter() {
             routes: [
               GoRoute(
                 path: Routes.more,
-                builder: (context, state) => const PhasePlaceholder(
-                  title: 'More',
-                  phase: 'PHASE 2',
-                ),
+                builder: (context, state) => const MoreScreen(),
               ),
             ],
           ),

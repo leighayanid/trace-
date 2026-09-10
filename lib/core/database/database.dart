@@ -156,4 +156,45 @@ class AppDatabase extends _$AppDatabase {
 
   Future<void> upsertNote(NotesCompanion note) =>
       into(notes).insertOnConflictUpdate(note);
+
+  Stream<List<Note>> watchNotesForBook(String bookId) {
+    return (select(notes)
+          ..where((t) => t.bookId.equals(bookId) & t.deletedAt.isNull())
+          ..orderBy([(t) => OrderingTerm.desc(t.createdAt)]))
+        .watch();
+  }
+
+  // ── Cross-cutting reads ───────────────────────────────────────────────────
+
+  /// Sessions belonging to one project, newest first.
+  Stream<List<Entry>> watchEntriesForProject(String projectId) {
+    return (select(entries)
+          ..where((t) => t.projectId.equals(projectId) & t.deletedAt.isNull())
+          ..orderBy([
+            (t) => OrderingTerm.desc(t.date),
+            (t) => OrderingTerm.desc(t.createdAt),
+          ]))
+        .watch();
+  }
+
+  Stream<List<Entry>> watchEntriesForBook(String bookId) {
+    return (select(entries)
+          ..where((t) => t.bookId.equals(bookId) & t.deletedAt.isNull())
+          ..orderBy([
+            (t) => OrderingTerm.desc(t.date),
+            (t) => OrderingTerm.desc(t.createdAt),
+          ]))
+        .watch();
+  }
+
+  /// Every live entry between two ISO day keys, inclusive. Drives Insights.
+  Stream<List<Entry>> watchEntriesBetween(String fromDate, String toDate) {
+    return (select(entries)
+          ..where((t) =>
+              t.date.isBiggerOrEqualValue(fromDate) &
+              t.date.isSmallerOrEqualValue(toDate) &
+              t.deletedAt.isNull())
+          ..orderBy([(t) => OrderingTerm.asc(t.date)]))
+        .watch();
+  }
 }
