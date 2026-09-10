@@ -1,3 +1,4 @@
+import 'package:animations/animations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -52,12 +53,29 @@ class TimelineScreen extends ConsumerWidget {
             _monthStepper(context, ref, month),
             const SizedBox(height: TraceSpace.sm),
             Expanded(
-              child: groups.when(
-                data: (data) => data.isEmpty
-                    ? _empty(context, month)
-                    : _list(context, data),
-                loading: () => const SizedBox.shrink(),
-                error: (_, _) => _error(context),
+              // Months slide along the horizontal axis in the direction of the
+              // arrow pressed, so paging back feels like moving back.
+              child: PageTransitionSwitcher(
+                duration: TraceMotion.base,
+                reverse: ref.watch(monthDirectionProvider) < 0,
+                transitionBuilder: (child, primary, secondary) =>
+                    SharedAxisTransition(
+                  animation: primary,
+                  secondaryAnimation: secondary,
+                  transitionType: SharedAxisTransitionType.horizontal,
+                  fillColor: c.bg,
+                  child: child,
+                ),
+                child: KeyedSubtree(
+                  key: ValueKey(DateFormat('yyyy-MM').format(month)),
+                  child: groups.when(
+                    data: (data) => data.isEmpty
+                        ? _empty(context, month)
+                        : _list(context, data),
+                    loading: () => const SizedBox.shrink(),
+                    error: (_, _) => _error(context),
+                  ),
+                ),
               ),
             ),
           ],

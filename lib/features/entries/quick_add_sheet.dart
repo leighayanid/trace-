@@ -1,3 +1,5 @@
+import 'dart:ui' show ImageFilter;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -7,6 +9,7 @@ import '../../app/theme/theme.dart';
 import '../../core/parser/entry_parser.dart';
 import '../../core/parser/quantity_grammar.dart';
 import '../../shared/widgets/mono_duration.dart';
+import '../../shared/widgets/save_sweep.dart';
 import '../../shared/widgets/trace_button.dart';
 import 'entry_providers.dart';
 
@@ -30,6 +33,10 @@ class _QuickAddSheetState extends ConsumerState<QuickAddSheet> {
   ParsedEntry? _parsed;
   bool _saving = false;
 
+  // Fixed rather than theme-derived, and deliberately so: Quick Add is a navy
+  // surface in both light and dark, the way the splash is always dark. It is a
+  // moment, not a page — theming it would make it blend into whatever screen it
+  // was opened from, which is the opposite of what it is for.
   static const _ink = Color(0xFF0B1F3A);
   static const _white = Color(0xFFF5F5F2);
   static const _muted = Color(0xFF8C9AAE);
@@ -81,10 +88,40 @@ class _QuickAddSheetState extends ConsumerState<QuickAddSheet> {
   Widget build(BuildContext context) {
     final insets = MediaQuery.viewInsetsOf(context).bottom;
 
+    // Expands to the full screen so the blur has something to cover; the sheet
+    // itself is bottom-aligned within it. The empty SizedBox under the filter
+    // takes part in no hit test, so taps above the sheet still reach the
+    // barrier and dismiss.
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        // The blur ramps in with the sheet rather than snapping on, so the
+        // screen behind recedes instead of being replaced.
+        Positioned.fill(
+          child: TweenAnimationBuilder<double>(
+            tween: Tween(begin: 0, end: 12),
+            duration: TraceMotion.base,
+            curve: TraceMotion.enter,
+            builder: (context, sigma, _) => BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: sigma, sigmaY: sigma),
+              child: const SizedBox.expand(),
+            ),
+          ),
+        ),
+        Align(
+          alignment: Alignment.bottomCenter,
+          child: _sheet(context, insets),
+        ),
+      ],
+    );
+  }
+
+  Widget _sheet(BuildContext context, double insets) {
     return Padding(
       padding: EdgeInsets.only(bottom: insets),
       child: FractionallySizedBox(
         heightFactor: 0.94,
+        alignment: Alignment.bottomCenter,
         child: Container(
           decoration: const BoxDecoration(
             color: _ink,
@@ -269,10 +306,14 @@ class _QuickAddSheetState extends ConsumerState<QuickAddSheet> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Uncertainty is carried by contrast, not hue: a recognised category
+          // sits back in muted, an assumed one steps forward in white. An
+          // amber warning colour would be a fifth colour in a palette that
+          // allows monochrome and navy only.
           Text(
             p.category.label,
             style: TraceText.sectionLabel.copyWith(
-              color: p.matchedCategory ? _muted : const Color(0xFFD8A657),
+              color: p.matchedCategory ? _muted : _white,
               letterSpacing: 2.4,
             ),
           ),
@@ -303,9 +344,7 @@ class _QuickAddSheetState extends ConsumerState<QuickAddSheet> {
             const SizedBox(height: TraceSpace.lg),
             Text(
               "I wasn't sure of the category — tap Edit details to set it.",
-              style: TraceText.rowSubtitle.copyWith(
-                color: const Color(0xFFD8A657),
-              ),
+              style: TraceText.rowSubtitle.copyWith(color: _white),
             ),
           ],
           const SizedBox(height: TraceSpace.xxxl),
@@ -324,7 +363,9 @@ class _QuickAddSheetState extends ConsumerState<QuickAddSheet> {
               ),
             ),
           ),
-          const SizedBox(height: TraceSpace.md),
+          const SizedBox(height: TraceSpace.xs),
+          SaveSweep(active: _saving, color: _white),
+          const SizedBox(height: TraceSpace.sm),
           Center(
             child: TraceButton.text(
               'Edit details',

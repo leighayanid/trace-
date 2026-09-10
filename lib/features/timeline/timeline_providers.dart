@@ -4,6 +4,20 @@ import 'package:intl/intl.dart';
 import '../../core/database/database.dart';
 import '../../core/database/database_provider.dart';
 
+/// Which way the last month change went: -1 back, +1 forward.
+///
+/// Read by the Timeline so the shared-axis transition travels in the direction
+/// of the arrow pressed. Without it, paging back would still slide forward.
+class MonthDirection extends Notifier<int> {
+  @override
+  int build() => 1;
+
+  void set(int value) => state = value;
+}
+
+final monthDirectionProvider =
+    NotifierProvider<MonthDirection, int>(MonthDirection.new);
+
 /// The month the Timeline is showing, normalised to its first day.
 class VisibleMonth extends Notifier<DateTime> {
   @override
@@ -12,9 +26,15 @@ class VisibleMonth extends Notifier<DateTime> {
     return DateTime(now.year, now.month);
   }
 
-  void previous() => state = DateTime(state.year, state.month - 1);
+  void previous() {
+    ref.read(monthDirectionProvider.notifier).set(-1);
+    state = DateTime(state.year, state.month - 1);
+  }
 
-  void next() => state = DateTime(state.year, state.month + 1);
+  void next() {
+    ref.read(monthDirectionProvider.notifier).set(1);
+    state = DateTime(state.year, state.month + 1);
+  }
 
   /// True when [state] is the current calendar month — used to stop the user
   /// paging into empty future months.

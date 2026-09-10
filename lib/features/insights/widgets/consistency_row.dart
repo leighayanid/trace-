@@ -34,15 +34,19 @@ class ConsistencyRow extends StatelessWidget {
                 style: TraceText.rowSubtitle.copyWith(color: c.textPrimary)),
           ),
           Expanded(
-            child: TweenAnimationBuilder<double>(
-              tween: Tween(begin: 0, end: 1),
-              duration: TraceMotion.slow,
-              curve: Curves.linear,
-              builder: (context, t, _) => _Dots(
-                days: days,
-                progress: t,
-                filled: c.navy,
-                empty: c.border,
+            // Isolated so ~30 dots animating does not repaint the scroll view
+            // around them.
+            child: RepaintBoundary(
+              child: TweenAnimationBuilder<double>(
+                tween: Tween(begin: 0, end: 1),
+                duration: TraceMotion.slow,
+                curve: Curves.linear,
+                builder: (context, t, _) => _Dots(
+                  days: days,
+                  progress: t,
+                  filled: c.navy,
+                  empty: c.border,
+                ),
               ),
             ),
           ),

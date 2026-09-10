@@ -551,7 +551,11 @@ be `RepaintBoundary`-wrapped so their animation does not repaint the scroll view
 >   Quick Add + Add Entry + Today wired to live SQLite.
 > - **Phase 2: complete.** Timeline, Projects (+ creation), Reading (+ books and
 >   session logging), Insights with both custom-painted charts, More, About.
-> - Next: **Phase 3** (motion pass, dark-theme audit, profiling).
+> - **Phase 3: complete** except for on-device profiling, which needs hardware.
+>   Catalogue items 1–10 and 12–17 are implemented. Item 11 (Timeline gutter
+>   pinning) is **not** built: it needs a sliver rewrite of the day list for a
+>   small gain, and was judged not worth the structural churn yet.
+> - Next: **Phase 4** (Neon) or **Phase 5** (export, release config).
 >
 > ### Deviations from the mockup, all deliberate
 >

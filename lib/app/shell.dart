@@ -26,16 +26,41 @@ class TraceShell extends StatefulWidget {
 }
 
 class TraceShellState extends State<TraceShell>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late final AnimationController _plus = AnimationController(
     vsync: this,
     duration: TraceMotion.base,
   );
 
+  /// Fades new tab content in on a destination change.
+  ///
+  /// Deliberately *not* an AnimatedSwitcher or PageTransitionSwitcher around
+  /// the navigation shell: re-keying it to force a transition risks tearing down
+  /// the IndexedStack that keeps each tab's scroll position and state. Driving
+  /// opacity separately leaves the shell untouched.
+  late final AnimationController _tabFade = AnimationController(
+    vsync: this,
+    duration: TraceMotion.base,
+    value: 1,
+  );
+
   @override
   void dispose() {
     _plus.dispose();
+    _tabFade.dispose();
     super.dispose();
+  }
+
+  void _select(int index) {
+    if (index != widget.navigationShell.currentIndex) {
+      _tabFade
+        ..value = 0
+        ..forward();
+    }
+    widget.navigationShell.goBranch(
+      index,
+      initialLocation: index == widget.navigationShell.currentIndex,
+    );
   }
 
   Future<void> openQuickAdd() async {
@@ -61,17 +86,20 @@ class TraceShellState extends State<TraceShell>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: widget.navigationShell,
+      body: FadeTransition(
+        opacity: CurvedAnimation(
+          parent: _tabFade,
+          curve: TraceMotion.standard,
+        ),
+        child: widget.navigationShell,
+      ),
       bottomNavigationBar: AnimatedBuilder(
         animation: _plus,
         builder: (context, _) => TraceNavBar(
           currentIndex: widget.navigationShell.currentIndex,
           plusTurns: _plus.value * 0.125,
           onPlus: openQuickAdd,
-          onSelect: (i) => widget.navigationShell.goBranch(
-            i,
-            initialLocation: i == widget.navigationShell.currentIndex,
-          ),
+          onSelect: _select,
         ),
       ),
     );

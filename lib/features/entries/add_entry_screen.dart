@@ -9,6 +9,7 @@ import '../../shared/models/category.dart';
 import '../../shared/widgets/category_glyph.dart';
 import '../../shared/widgets/mono_duration.dart';
 import '../../shared/widgets/press_scale.dart';
+import '../../shared/widgets/save_sweep.dart';
 import 'entry_providers.dart';
 
 /// The confirmation form. Every field the parser proposed is editable here —
@@ -89,6 +90,8 @@ class _AddEntryScreenState extends ConsumerState<AddEntryScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _topBar(context),
+            // Sweeps left to right beneath the Save row, then the screen pops.
+            SaveSweep(active: _saving),
             Expanded(
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(
@@ -217,7 +220,15 @@ class _AddEntryScreenState extends ConsumerState<AddEntryScreen> {
         ),
         child: Row(
           children: [
-            CategoryGlyph(category: _category, size: 28),
+            CategoryGlyph(
+              category: _category,
+              size: 28,
+              // Pairs with the row that opened this screen. Absent when adding,
+              // since there is no row to fly from.
+              heroTag: widget.entryId == null
+                  ? null
+                  : 'entry-glyph-${widget.entryId}',
+            ),
             const SizedBox(width: TraceSpace.md),
             Expanded(
               child: Text(

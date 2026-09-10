@@ -139,6 +139,10 @@ class TodayScreen extends ConsumerWidget {
             title: entries[i].title,
             duration: entries[i].durationOrNull,
             quantityLabel: _quantityLabel(entries[i]),
+            // Flies into the category tile on the edit screen. Only Today sets
+            // this: Timeline shares the same shell route, and a second row with
+            // the same tag would be a duplicate Hero.
+            heroTag: 'entry-glyph-${entries[i].id}',
             onTap: () => _edit(context, entries[i]),
           ),
         )
