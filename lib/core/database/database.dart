@@ -199,6 +199,86 @@ class AppDatabase extends _$AppDatabase {
         .watch();
   }
 
+  // ── Export and erasure ────────────────────────────────────────────────────
+
+  /// Every live row, for the archive. Tombstones are left out: an export is the
+  /// record the user kept, not the record they threw away.
+  Future<List<Entry>> allEntries() =>
+      (select(entries)
+            ..where((t) => t.deletedAt.isNull())
+            ..orderBy([
+              (t) => OrderingTerm.desc(t.date),
+              (t) => OrderingTerm.desc(t.createdAt),
+            ]))
+          .get();
+
+  Future<List<Note>> allNotes() =>
+      (select(notes)..where((t) => t.deletedAt.isNull())).get();
+
+  /// Tombstones every live row and marks it dirty, so the deletion propagates
+  /// on the next sync instead of being undone by the next pull.
+  ///
+  /// Used only when a session exists. Without one there is nowhere for a
+  /// tombstone to travel, and [eraseEverything] is the honest operation.
+  Future<void> tombstoneEverything() async {
+    final now = DateTime.now().toUtc();
+    await transaction(() async {
+      await (update(entries)..where((t) => t.deletedAt.isNull())).write(
+        EntriesCompanion(
+          deletedAt: Value(now),
+          updatedAt: Value(now),
+          dirty: const Value(true),
+        ),
+      );
+      await (update(projects)..where((t) => t.deletedAt.isNull())).write(
+        ProjectsCompanion(
+          deletedAt: Value(now),
+          updatedAt: Value(now),
+          dirty: const Value(true),
+        ),
+      );
+      await (update(books)..where((t) => t.deletedAt.isNull())).write(
+        BooksCompanion(
+          deletedAt: Value(now),
+          updatedAt: Value(now),
+          dirty: const Value(true),
+        ),
+      );
+      await (update(notes)..where((t) => t.deletedAt.isNull())).write(
+        NotesCompanion(
+          deletedAt: Value(now),
+          updatedAt: Value(now),
+          dirty: const Value(true),
+        ),
+      );
+      await (update(proofs)..where((t) => t.deletedAt.isNull())).write(
+        ProofsCompanion(
+          deletedAt: Value(now),
+          updatedAt: Value(now),
+          dirty: const Value(true),
+        ),
+      );
+    });
+  }
+
+  /// The only hard DELETE in the app.
+  ///
+  /// Everywhere else a delete is a tombstone, because a delete that cannot
+  /// propagate resurrects. This is the deliberate exception: when the user asks
+  /// for their data to be gone, leaving it on disk under a `deleted_at` flag
+  /// would not be deletion. The sync cursor goes too, so a later sign-in pulls
+  /// from scratch rather than trusting a cursor for rows that no longer exist.
+  Future<void> eraseEverything() async {
+    await transaction(() async {
+      await delete(proofs).go();
+      await delete(notes).go();
+      await delete(entries).go();
+      await delete(books).go();
+      await delete(projects).go();
+      await delete(syncStates).go();
+    });
+  }
+
   // ── Sync bookkeeping ──────────────────────────────────────────────────────
   //
   // These deliberately do *not* filter `deletedAt`: a tombstone is exactly what

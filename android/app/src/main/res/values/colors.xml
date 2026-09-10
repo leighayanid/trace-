@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Navy. The one accent, used here as the whole field. -->
+    <color name="ic_launcher_background">#0B1F3A</color>
+
+    <!-- The window the OS paints before Flutter draws a frame. It matches the
+         dark ground of the splash screen rather than the theme, so the handoff
+         is one transition instead of a white flash and then a fade. -->
+    <color name="trace_launch">#0B0D10</color>
+</resources>

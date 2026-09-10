@@ -1,0 +1,6 @@
+# Copy to android/key.properties (gitignored) and fill in.
+# storeFile is resolved relative to the android/ directory.
+storePassword=
+keyPassword=
+keyAlias=trace
+storeFile=/absolute/path/to/trace-release.jks
