@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart';
 import 'package:drift_flutter/drift_flutter.dart';
 
+import '../sync/conflict.dart' show SyncRow;
 import 'tables.dart';
 
 part 'database.g.dart';
@@ -196,5 +197,117 @@ class AppDatabase extends _$AppDatabase {
               t.deletedAt.isNull())
           ..orderBy([(t) => OrderingTerm.asc(t.date)]))
         .watch();
+  }
+
+  // ── Sync bookkeeping ──────────────────────────────────────────────────────
+  //
+  // These deliberately do *not* filter `deletedAt`: a tombstone is exactly what
+  // has to reach the server, and a delete that cannot propagate is a delete
+  // that resurrects on the next pull.
+
+  Future<List<Entry>> dirtyEntries() =>
+      (select(entries)..where((t) => t.dirty.equals(true))).get();
+
+  Future<List<Project>> dirtyProjects() =>
+      (select(projects)..where((t) => t.dirty.equals(true))).get();
+
+  Future<List<Book>> dirtyBooks() =>
+      (select(books)..where((t) => t.dirty.equals(true))).get();
+
+  Future<List<Note>> dirtyNotes() =>
+      (select(notes)..where((t) => t.dirty.equals(true))).get();
+
+  Future<void> markEntriesClean(List<String> ids) =>
+      (update(entries)..where((t) => t.id.isIn(ids))).write(
+        EntriesCompanion(
+          dirty: const Value(false),
+          syncedAt: Value(DateTime.now().toUtc()),
+        ),
+      );
+
+  Future<void> markProjectsClean(List<String> ids) =>
+      (update(projects)..where((t) => t.id.isIn(ids))).write(
+        ProjectsCompanion(
+          dirty: const Value(false),
+          syncedAt: Value(DateTime.now().toUtc()),
+        ),
+      );
+
+  Future<void> markBooksClean(List<String> ids) =>
+      (update(books)..where((t) => t.id.isIn(ids))).write(
+        BooksCompanion(
+          dirty: const Value(false),
+          syncedAt: Value(DateTime.now().toUtc()),
+        ),
+      );
+
+  Future<void> markNotesClean(List<String> ids) =>
+      (update(notes)..where((t) => t.id.isIn(ids))).write(
+        NotesCompanion(
+          dirty: const Value(false),
+          syncedAt: Value(DateTime.now().toUtc()),
+        ),
+      );
+
+  Future<SyncRow?> entrySyncRow(String id) async {
+    final row =
+        await (select(entries)..where((t) => t.id.equals(id))).getSingleOrNull();
+    return row == null
+        ? null
+        : SyncRow(id: row.id, updatedAt: row.updatedAt, dirty: row.dirty);
+  }
+
+  Future<SyncRow?> projectSyncRow(String id) async {
+    final row = await (select(projects)..where((t) => t.id.equals(id)))
+        .getSingleOrNull();
+    return row == null
+        ? null
+        : SyncRow(id: row.id, updatedAt: row.updatedAt, dirty: row.dirty);
+  }
+
+  Future<SyncRow?> bookSyncRow(String id) async {
+    final row =
+        await (select(books)..where((t) => t.id.equals(id))).getSingleOrNull();
+    return row == null
+        ? null
+        : SyncRow(id: row.id, updatedAt: row.updatedAt, dirty: row.dirty);
+  }
+
+  Future<SyncRow?> noteSyncRow(String id) async {
+    final row =
+        await (select(notes)..where((t) => t.id.equals(id))).getSingleOrNull();
+    return row == null
+        ? null
+        : SyncRow(id: row.id, updatedAt: row.updatedAt, dirty: row.dirty);
+  }
+
+  Future<SyncState?> syncState() =>
+      (select(syncStates)..where((t) => t.id.equals(1))).getSingleOrNull();
+
+  Stream<SyncState?> watchSyncState() =>
+      (select(syncStates)..where((t) => t.id.equals(1))).watchSingleOrNull();
+
+  /// Merges into the single sync-state row.
+  ///
+  /// [error] is passed explicitly as null to clear a previous failure, which is
+  /// why it uses [clearError] rather than treating null as "leave alone".
+  Future<void> updateSyncState({
+    DateTime? cursor,
+    DateTime? lastPushAt,
+    String? error,
+    bool clearError = false,
+  }) {
+    return into(syncStates).insertOnConflictUpdate(
+      SyncStatesCompanion(
+        id: const Value(1),
+        lastPullCursor:
+            cursor == null ? const Value.absent() : Value(cursor),
+        lastPushAt:
+            lastPushAt == null ? const Value.absent() : Value(lastPushAt),
+        lastError: (error == null && !clearError)
+            ? const Value.absent()
+            : Value(error),
+      ),
+    );
   }
 }

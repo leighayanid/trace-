@@ -555,7 +555,47 @@ be `RepaintBoundary`-wrapped so their animation does not repaint the scroll view
 >   Catalogue items 1–10 and 12–17 are implemented. Item 11 (Timeline gutter
 >   pinning) is **not** built: it needs a sliver rewrite of the day list for a
 >   small gain, and was judged not worth the structural churn yet.
-> - Next: **Phase 4** (Neon) or **Phase 5** (export, release config).
+> - **Phase 4: code complete, UNVERIFIED against a live Neon project.** Schema +
+>   RLS migration, hand-rolled Neon Auth client, session controller with
+>   refresh-ahead and single-flight, Data API client, sync engine, and an opt-in
+>   Sync screen. Conflict resolution has 13 tests. **Nothing here has spoken to a
+>   real server.** See the checklist below before trusting it.
+> - Next: **Phase 5** (export, delete-all, icons, release config).
+>
+> ### Phase 4 verification checklist — do this first
+>
+> The load-bearing unknown: Neon controls the plugin configuration of its managed
+> Better Auth, so whether `set-auth-token` actually comes back on sign-in could
+> not be confirmed without a project. Settle it with three curls, not by reading
+> the Dart:
+>
+> ```bash
+> # 1. Does sign-in return a session token in a header?
+> curl -i -X POST "$NEON_AUTH_BASE_URL/api/auth/sign-up/email" \
+>   -H 'Content-Type: application/json' \
+>   -d '{"email":"...","password":"...","name":"Leigh"}'
+> #    inspect response headers for `set-auth-token`
+>
+> # 2. Does the session token exchange for a JWT?
+> curl -s "$NEON_AUTH_BASE_URL/api/auth/token" \
+>   -H "Authorization: Bearer $SESSION_TOKEN"
+>
+> # 3. Does that JWT satisfy RLS?
+> curl -s "$DATA_API_URL/entries?select=*" -H "Authorization: Bearer $JWT"
+> ```
+>
+> If step 1 returns only `Set-Cookie`, the client needs a cookie jar rather than
+> a bearer header — a materially different design. `NeonAuthClient` throws a
+> message saying exactly that rather than failing vaguely.
+>
+> Also unverified, and needing two real devices: tombstone propagation,
+> simultaneous offline edits of one row, and a cold-start pull of a large
+> history.
+>
+> Known gap: `Conflict.clampToServer` is tested but **unwired**. It needs a real
+> server clock, and PostgREST does not surface the response `Date` header through
+> the Dart package. Until then a device with a badly wrong clock can win every
+> conflict.
 >
 > ### Deviations from the mockup, all deliberate
 >

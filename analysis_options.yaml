@@ -21,8 +21,11 @@ linter:
   # `// ignore_for_file: name_of_lint` syntax on the line or in the file
   # producing the lint.
   rules:
-    # avoid_print: false  # Uncomment to disable the `avoid_print` rule
-    # prefer_single_quotes: true  # Uncomment to enable the `prefer_single_quotes` rule
+    # A private field cannot be a named constructor parameter, so every class
+    # that takes injected dependencies by name trips this rule. Its suggested
+    # fix is to make the fields public, which is worse than the thing it
+    # objects to.
+    prefer_initializing_formals: false
 
 # Additional information about this file can be found at
 # https://dart.dev/guides/language/analysis-options

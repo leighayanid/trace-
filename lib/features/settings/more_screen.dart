@@ -3,9 +3,11 @@ import 'package:flutter/material.dart';
 import '../../app/theme/theme.dart';
 import '../../shared/widgets/press_scale.dart';
 import '../../shared/widgets/section_label.dart';
+import '../../core/config.dart';
 import '../insights/insights_screen.dart';
 import '../reading/reading_screen.dart';
 import 'about_screen.dart';
+import 'sync_screen.dart';
 
 /// Secondary destinations. A flat list, one level deep — the brief rules out a
 /// multi-level navigation system.
@@ -35,6 +37,15 @@ class MoreScreen extends StatelessWidget {
             Divider(color: c.border, height: 1),
             _row(context, Icons.insights_outlined, 'Insights',
                 const InsightsScreen()),
+            // Hidden entirely unless a backend is configured. A Sync row that
+            // cannot work is worse than no row — and the local-first app is
+            // complete without one.
+            if (TraceConfig.syncConfigured) ...[
+              const SizedBox(height: TraceSpace.section),
+              const SectionLabel('Data'),
+              const SizedBox(height: TraceSpace.xs),
+              _row(context, Icons.cloud_outlined, 'Sync', const SyncScreen()),
+            ],
             const SizedBox(height: TraceSpace.section),
             const SectionLabel('About'),
             const SizedBox(height: TraceSpace.xs),
