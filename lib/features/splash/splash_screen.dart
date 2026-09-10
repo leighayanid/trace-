@@ -77,13 +77,34 @@ class _SplashScreenState extends State<SplashScreen>
       body: Stack(
         fit: StackFit.expand,
         children: [
-          // TODO: swap for the mountain photograph once supplied.
-          // assets/images/splash.jpg — declare it and replace this container.
           ScaleTransition(
             scale: _bgScale,
-            child: const DecoratedBox(
-              decoration: BoxDecoration(color: Color(0xFF10161F)),
+            child: Image.asset(
+              'assets/images/splash.jpg',
+              fit: BoxFit.cover,
+              // The ink field shows through until the asset decodes, so the
+              // first frame is never a white flash.
+              errorBuilder: (_, _, _) => const ColoredBox(color: ink),
             ),
+          ),
+          // A legibility scrim, not decoration: dark where the type sits, clear
+          // across the middle so the peak still reads. Without it the wordmark
+          // would fall on snow and disappear.
+          const DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Color(0xC20B0D10),
+                  Color(0x4D0B0D10),
+                  Color(0x8A0B0D10),
+                  Color(0xEB0B0D10),
+                ],
+                stops: [0.0, 0.42, 0.74, 1.0],
+              ),
+            ),
+            child: SizedBox.expand(),
           ),
           SafeArea(
             child: Padding(
@@ -91,7 +112,9 @@ class _SplashScreenState extends State<SplashScreen>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Spacer(flex: 3),
+                  // Sits high, in the sky band. Lower and the wordmark lands on
+                  // the snowfield, where white type has nothing to hold against.
+                  const Spacer(flex: 2),
                   FadeTransition(
                     opacity: _markFade,
                     child: AnimatedBuilder(
