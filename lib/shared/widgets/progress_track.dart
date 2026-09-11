@@ -35,7 +35,10 @@ class ProgressTrack extends StatelessWidget {
       duration: const Duration(milliseconds: 900),
       curve: TraceMotion.emphasizedDecelerate,
       animate: animate,
+      // Full width even under loose constraints — a start-aligned Column would
+      // otherwise shrink the painter to nothing.
       builder: (context, v) => SizedBox(
+        width: double.infinity,
         height: height,
         child: CustomPaint(
           painter: _TrackPainter(value: v, track: c.border, fill: c.navy),
