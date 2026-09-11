@@ -1,11 +1,12 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
-/// Persists the Better Auth session token.
+/// Persists the Better Auth session — the session cookie as a `name=value`
+/// pair, ready to replay in a `Cookie` header.
 ///
 /// Two rules, neither optional because this layer is hand-rolled: never log a
 /// token, and never persist one outside secure storage.
 ///
-/// Only the *session* token is stored. The JWT the Data API validates is
+/// Only the *session* is stored. The JWT the Data API validates is
 /// short-lived and lives in memory only — writing it to disk would mean keeping
 /// a second credential with none of the benefit.
 class TokenStore {

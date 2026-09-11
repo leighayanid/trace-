@@ -617,9 +617,16 @@ be `RepaintBoundary`-wrapped so their animation does not repaint the scroll view
 > curl -s "$DATA_API_URL/entries?select=*" -H "Authorization: Bearer $JWT"
 > ```
 >
-> If step 1 returns only `Set-Cookie`, the client needs a cookie jar rather than
-> a bearer header — a materially different design. `NeonAuthClient` throws a
-> message saying exactly that rather than failing vaguely.
+> **Settled 2026-09-11 against a live project** (`bash tool/neon_check.sh` runs
+> all three and prints no tokens):
+>
+> - POSTs need an `Origin` header naming a trusted domain, else
+>   `400 MISSING_ORIGIN`. Localhost is trusted by default.
+> - There is no bearer plugin: no `set-auth-token`, and a bearer session gets
+>   401 from `/token`. The session is the `__Secure-neon-auth.session_token`
+>   cookie, which `NeonAuthClient` stores and replays as a `Cookie` header.
+> - The JWT carries `role: authenticated`; the Data API returns `[]` with it and
+>   refuses the request without it.
 >
 > Also unverified, and needing two real devices: tombstone propagation,
 > simultaneous offline edits of one row, and a cold-start pull of a large

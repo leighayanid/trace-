@@ -18,41 +18,61 @@ class AuthException implements Exception {
 /// There is no Dart SDK, so this is code we own. It speaks the stock Better
 /// Auth REST surface, which Neon runs as a managed service.
 ///
-/// ## Two tokens, and they are not interchangeable
+/// ## Two credentials, and they are not interchangeable
 ///
-/// This is the part most likely to cost a day if it is misread:
+/// - the **session** is a cookie, `__Secure-neon-auth.session_token`, set by
+///   sign-in and long-lived. It talks only to the auth service and belongs in
+///   secure storage. It is kept as the literal `name=value` pair and replayed
+///   in a `Cookie` header — the browser's job, done by hand.
+/// - the **JWT** is short-lived, fetched from `/token` with that cookie, and is
+///   the only thing the Data API will accept. It belongs in memory.
 ///
-/// - the **session token** is opaque and long-lived. It is returned by sign-in
-///   in the `set-auth-token` response header and talks only to the auth
-///   service. It belongs in secure storage.
-/// - the **JWT** is short-lived, fetched from `/token` using the
-///   session token, and is the only thing the Data API will accept. It belongs
-///   in memory.
+/// ## Verified against a live project (2026-09-11)
 ///
-/// ## Unverified
+/// - Neon's managed Better Auth has **no bearer plugin**: a session token sent
+///   as `Authorization: Bearer` is refused with 401, and sign-in sets no
+///   `set-auth-token` header. The `token` field in the sign-in body is the raw
+///   session id, which is useless without the cookie's signature. The cookie is
+///   the only session credential that works.
+/// - Sign-up and sign-in are refused with `400 MISSING_ORIGIN` unless an
+///   `Origin` header names a trusted domain. `GET /token` needs none.
 ///
-/// Neon controls the plugin configuration of its managed Better Auth, not us.
-/// Whether the bearer plugin is enabled — that is, whether `set-auth-token`
-/// actually comes back on sign-in — could not be confirmed without a live
-/// project. [signIn] therefore falls back to reading the token from the
-/// response body, and throws a descriptive error if neither is present, rather
-/// than returning something plausible and wrong.
-///
-/// Verify with three curls before trusting this in anger; see PLAN.md §5.
+/// `tool/neon_check.sh` re-runs these checks.
 class NeonAuthClient {
-  NeonAuthClient({required this.baseUrl, http.Client? httpClient})
-      : _http = httpClient ?? http.Client();
+  NeonAuthClient({
+    required this.baseUrl,
+    this.origin = defaultOrigin,
+    http.Client? httpClient,
+  }) : _http = httpClient ?? http.Client();
 
   /// The Auth URL from the Neon Console, which already ends in the auth path:
   /// `https://ep-XXX.neonauth.REGION.aws.neon.tech/neondb/auth`.
   final String baseUrl;
+
+  /// Sent as `Origin` on every POST, which Better Auth requires.
+  ///
+  /// A native app has no real origin, so this is a label the server checks
+  /// against its trusted domains. Localhost is trusted while the project's
+  /// "Allow Localhost" setting is on (Neon's default). Turn that off and this
+  /// must become a domain added with `neon neon-auth domain add`.
+  final String origin;
+
+  static const defaultOrigin = 'http://localhost:3000';
+
   final http.Client _http;
 
   static const _timeout = Duration(seconds: 20);
 
+  /// Matches the session cookie by suffix rather than exact name, so a change
+  /// of prefix on Neon's side does not break sign-in. Companions that share the
+  /// prefix (`…session_data`) do not end in `session_token` and are skipped, as
+  /// is a cleared cookie with an empty value.
+  static final _sessionCookie =
+      RegExp(r'(?:^|[\s,;])([\w.-]*session_token)=([^;,\s]+)');
+
   Uri _uri(String path) => Uri.parse('$baseUrl$path');
 
-  /// Signs in and returns the **session** token.
+  /// Signs in and returns the **session** cookie, as `name=value`.
   Future<String> signIn({
     required String email,
     required String password,
@@ -61,13 +81,13 @@ class NeonAuthClient {
       'email': email,
       'password': password,
     });
-    return _extractSessionToken(res);
+    return _extractSession(res);
   }
 
-  /// Creates the account and returns the **session** token.
+  /// Creates the account and returns the **session** cookie, as `name=value`.
   ///
-  /// TRACE has one user, so this runs once, ever. It exists so the account can
-  /// be made from the app rather than out of band.
+  /// TRACE has one user, so this runs once, ever, and the app has no screen for
+  /// it — `tool/neon_check.sh` makes the account.
   Future<String> signUp({
     required String email,
     required String password,
@@ -78,19 +98,22 @@ class NeonAuthClient {
       'password': password,
       'name': name,
     });
-    return _extractSessionToken(res);
+    return _extractSession(res);
   }
 
-  /// Exchanges a session token for the short-lived JWT the Data API validates.
-  Future<String> fetchJwt(String sessionToken) async {
+  /// Exchanges the session cookie for the short-lived JWT the Data API
+  /// validates.
+  Future<String> fetchJwt(String session) async {
     final res = await _http.get(
       _uri('/token'),
-      headers: {'Authorization': 'Bearer $sessionToken'},
+      headers: {'Cookie': session},
     ).timeout(_timeout);
 
     if (res.statusCode >= 400) {
       throw AuthException(
-        'Token exchange rejected',
+        res.statusCode == 401
+            ? 'Session expired — sign in again'
+            : 'Token exchange rejected',
         statusCode: res.statusCode,
       );
     }
@@ -98,24 +121,20 @@ class NeonAuthClient {
     final body = _decode(res.body);
     final token = body['token'];
     if (token is! String || token.isEmpty) {
-      throw const AuthException(
-        'Token exchange returned no token. If the JWT plugin is not enabled on '
-        'this Neon project, the Data API cannot be reached with a session '
-        'token alone.',
-      );
+      throw const AuthException('Token exchange returned no token');
     }
     return token;
   }
 
-  Future<void> signOut(String sessionToken) async {
+  Future<void> signOut(String session) async {
     try {
       await _http.post(
         _uri('/sign-out'),
-        headers: {'Authorization': 'Bearer $sessionToken'},
+        headers: {'Cookie': session, 'Origin': origin},
       ).timeout(_timeout);
     } catch (_) {
       // A failed sign-out must never strand the user in a signed-in UI. The
-      // local token is cleared by the caller regardless.
+      // local session is cleared by the caller regardless.
     }
   }
 
@@ -123,7 +142,7 @@ class NeonAuthClient {
     final res = await _http
         .post(
           _uri(path),
-          headers: const {'Content-Type': 'application/json'},
+          headers: {'Content-Type': 'application/json', 'Origin': origin},
           body: jsonEncode(body),
         )
         .timeout(_timeout);
@@ -137,26 +156,20 @@ class NeonAuthClient {
     return res;
   }
 
-  /// Prefers the bearer-plugin header, falls back to the body.
-  static String _extractSessionToken(http.Response res) {
-    final header = res.headers['set-auth-token'];
-    if (header != null && header.isNotEmpty) return header;
-
-    final body = _decode(res.body);
-    for (final key in const ['token', 'sessionToken']) {
-      final v = body[key];
-      if (v is String && v.isNotEmpty) return v;
+  /// Pulls the session cookie out of `Set-Cookie`.
+  ///
+  /// `package:http` folds repeated `Set-Cookie` headers into one
+  /// comma-separated string, and `Expires=Wed, 21 Oct …` has commas of its
+  /// own — hence a pattern that anchors on the cookie name, not a split.
+  static String _extractSession(http.Response res) {
+    final header = res.headers['set-cookie'] ?? '';
+    for (final m in _sessionCookie.allMatches(header)) {
+      final value = m.group(2)!;
+      if (value.isNotEmpty) return '${m.group(1)}=$value';
     }
-    final session = body['session'];
-    if (session is Map && session['token'] is String) {
-      return session['token'] as String;
-    }
-
     throw const AuthException(
-      'Sign-in succeeded but returned no session token. This usually means the '
-      'bearer plugin is not enabled on this Neon project, and the session is '
-      'being issued as a cookie instead — which needs a cookie jar rather than '
-      'a bearer header.',
+      'Sign-in succeeded but set no session cookie. Check that the Auth URL '
+      'is the one from the Neon Console.',
     );
   }
 
