@@ -32,10 +32,10 @@ class TimelineScreen extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(
-                TraceSpace.gutter,
+              padding: EdgeInsets.fromLTRB(
+                context.gutter,
                 TraceSpace.lg,
-                TraceSpace.gutter,
+                context.gutter,
                 0,
               ),
               child: Row(
@@ -91,7 +91,7 @@ class TimelineScreen extends ConsumerWidget {
     final canGoNext = !ref.read(visibleMonthProvider.notifier).isCurrent;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: TraceSpace.gutter),
+      padding: EdgeInsets.symmetric(horizontal: context.gutter),
       child: Row(
         children: [
           PressScale(
@@ -126,10 +126,10 @@ class TimelineScreen extends ConsumerWidget {
 
   Widget _list(BuildContext context, List<DayGroup> groups) {
     return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(
-        TraceSpace.gutter,
+      padding: EdgeInsets.fromLTRB(
+        context.gutter,
         TraceSpace.md,
-        TraceSpace.gutter,
+        context.gutter,
         TraceSpace.xxxl,
       ),
       itemCount: groups.length,

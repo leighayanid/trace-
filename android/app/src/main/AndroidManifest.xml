@@ -1,8 +1,19 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Sync only. The debug and profile manifests grant this for the Flutter
+         tool, which is why a missing entry here fails in release alone. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+
+    <!-- Backup stays on so the local record survives a lost phone, but the
+         secure-storage files are excluded: their keys live in the device's
+         KeyStore and are never backed up, so restoring the ciphertext onto a
+         new phone fails with "Failed to unwrap key". The session is simply
+         signed into again. -->
     <application
         android:label="TRACE"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:fullBackupContent="@xml/backup_rules"
+        android:dataExtractionRules="@xml/data_extraction_rules">
         <activity
             android:name=".MainActivity"
             android:exported="true"

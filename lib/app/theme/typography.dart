@@ -78,6 +78,15 @@ abstract final class TraceText {
     height: 1.2,
   );
 
+  /// Bottom navigation destinations: `Today`, `Timeline`.
+  static const navLabel = TextStyle(
+    fontFamily: _sans,
+    fontSize: 12,
+    fontWeight: FontWeight.w500,
+    letterSpacing: 0.2,
+    height: 1.2,
+  );
+
   /// The grey line beneath a category label.
   static const rowSubtitle = TextStyle(
     fontFamily: _sans,

@@ -6,7 +6,7 @@ import 'press_scale.dart';
 
 /// `Today · Timeline · [+] · Projects · More`
 ///
-/// The centre `+` is navy and ~44pt: prominent, not oversized. Its rotation is
+/// The centre `+` is navy and ~48pt: prominent, not oversized. Its rotation is
 /// driven externally by [plusTurns] so the Quick Add sheet and the `+ → ×` morph
 /// share one controller rather than running two animations that drift apart.
 class TraceNavBar extends StatelessWidget {
@@ -53,23 +53,37 @@ class TraceNavBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.traceColors;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: c.bg,
-        border: Border(top: BorderSide(color: c.border)),
-      ),
-      child: SafeArea(
-        top: false,
-        child: SizedBox(
-          height: TraceSize.navBar,
-          child: Row(
-            children: [
-              _tab(context, 0),
-              _tab(context, 1),
-              _plusButton(context),
-              _tab(context, 2),
-              _tab(context, 3),
-            ],
+    // Labels follow the system text size, but only so far: past 1.3× five slots
+    // have nowhere left to put the words, and the bar's height is fixed.
+    return MediaQuery.withClampedTextScaling(
+      maxScaleFactor: 1.3,
+      child: Container(
+        decoration: BoxDecoration(
+          color: c.bg,
+          border: Border(top: BorderSide(color: c.border)),
+        ),
+        child: SafeArea(
+          top: false,
+          // The bar spans the screen; the destinations do not. heightFactor
+          // keeps Center from claiming the whole height the Scaffold offers.
+          child: Center(
+            heightFactor: 1,
+            child: ConstrainedBox(
+              constraints:
+                  const BoxConstraints(maxWidth: TraceSize.navMaxWidth),
+              child: SizedBox(
+                height: TraceSize.navBar,
+                child: Row(
+                  children: [
+                    _tab(context, 0),
+                    _tab(context, 1),
+                    _plusButton(context),
+                    _tab(context, 2),
+                    _tab(context, 3),
+                  ],
+                ),
+              ),
+            ),
           ),
         ),
       ),
@@ -92,16 +106,22 @@ class TraceNavBar extends StatelessWidget {
           children: [
             Icon(
               selected ? d.active : d.icon,
-              size: 20,
+              size: 24,
               color: selected ? c.textPrimary : c.textSecondary,
             ),
-            const SizedBox(height: 3),
-            Text(
-              d.label,
-              style: TraceText.sectionLabel.copyWith(
-                fontSize: 9,
-                letterSpacing: 0.4,
-                color: selected ? c.textPrimary : c.textSecondary,
+            const SizedBox(height: 6),
+            // Shrinks rather than clips on a narrow phone at a large text size.
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: TraceSpace.xs),
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  d.label,
+                  maxLines: 1,
+                  style: TraceText.navLabel.copyWith(
+                    color: selected ? c.textPrimary : c.textSecondary,
+                  ),
+                ),
               ),
             ),
           ],
@@ -114,7 +134,7 @@ class TraceNavBar extends StatelessWidget {
     final c = context.traceColors;
 
     return SizedBox(
-      width: TraceSize.navPlus + TraceSpace.lg,
+      width: TraceSize.navPlus + TraceSpace.xl,
       child: Center(
         child: PressScale(
           onTap: () {
@@ -127,7 +147,7 @@ class TraceNavBar extends StatelessWidget {
             decoration: BoxDecoration(color: c.navy, shape: BoxShape.circle),
             child: RotationTransition(
               turns: AlwaysStoppedAnimation(plusTurns),
-              child: Icon(Icons.add_rounded, size: 24, color: c.onNavy),
+              child: Icon(Icons.add_rounded, size: 26, color: c.onNavy),
             ),
           ),
         ),

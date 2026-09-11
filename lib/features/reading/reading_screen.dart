@@ -27,10 +27,10 @@ class ReadingScreen extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(
-                TraceSpace.gutter,
+              padding: EdgeInsets.fromLTRB(
+                context.gutter,
                 TraceSpace.lg,
-                TraceSpace.gutter,
+                context.gutter,
                 0,
               ),
               child: Row(
@@ -71,10 +71,10 @@ class ReadingScreen extends ConsumerWidget {
         books.where((b) => b.status != BookStatus.reading.key).toList();
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(
-        TraceSpace.gutter,
+      padding: EdgeInsets.fromLTRB(
+        context.gutter,
         TraceSpace.xl,
-        TraceSpace.gutter,
+        context.gutter,
         TraceSpace.xxxl,
       ),
       children: [

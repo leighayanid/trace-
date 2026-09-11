@@ -59,10 +59,10 @@ class _SyncScreenState extends ConsumerState<SyncScreen> {
       backgroundColor: c.bg,
       body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(
-            TraceSpace.gutter,
+          padding: EdgeInsets.fromLTRB(
+            context.gutter,
             0,
-            TraceSpace.gutter,
+            context.gutter,
             TraceSpace.xxxl,
           ),
           children: [
@@ -97,6 +97,15 @@ class _SyncScreenState extends ConsumerState<SyncScreen> {
 
   List<Widget> _signInSection(BuildContext context) {
     final c = context.traceColors;
+    final status = ref.watch(syncControllerProvider);
+    // Why the form is back, when it came back on its own. A sign-in attempt's
+    // own error takes precedence.
+    final notice = _error ??
+        (status is SyncFailed && status.sessionEnded
+            ? 'Your session ended. Sign in again to keep syncing — nothing '
+                'on this device was lost.'
+            : null);
+
     return [
       const SectionLabel('Sign in'),
       const SizedBox(height: TraceSpace.md),
@@ -104,9 +113,9 @@ class _SyncScreenState extends ConsumerState<SyncScreen> {
           keyboard: TextInputType.emailAddress),
       const SizedBox(height: TraceSpace.md),
       _field(context, _password, 'Password', obscure: true),
-      if (_error != null) ...[
+      if (notice != null) ...[
         const SizedBox(height: TraceSpace.md),
-        Text(_error!,
+        Text(notice,
             style: TraceText.rowSubtitle.copyWith(color: c.textPrimary)),
       ],
       const SizedBox(height: TraceSpace.xl),

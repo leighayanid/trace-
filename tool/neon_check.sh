@@ -3,6 +3,11 @@
 #
 #   bash tool/neon_check.sh
 #
+# Sends Origin: http://localhost:3000 unless NEON_AUTH_ORIGIN is set — set it
+# to your trusted domain once "Allow Localhost" is off:
+#
+#   NEON_AUTH_ORIGIN=https://your.domain bash tool/neon_check.sh
+#
 # Prompts for everything, so nothing sensitive lands in shell history. Prints
 # status codes, header names and yes/no answers — never a token, because a
 # session token is as good as the password.
@@ -55,7 +60,7 @@ origin_needed=no
 # trusted by default while "Allow Localhost" is on.
 if (( status >= 400 )) && grep -qi origin "$tmp/a_body"; then
   origin_needed=yes
-  status=$(auth_request -H 'Origin: http://localhost:3000')
+  status=$(auth_request -H "Origin: ${NEON_AUTH_ORIGIN:-http://localhost:3000}")
   echo "retried with Origin: $status"
 fi
 if (( status >= 400 )); then

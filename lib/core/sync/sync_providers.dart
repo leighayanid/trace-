@@ -1,3 +1,4 @@
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../auth/neon_auth_client.dart';
@@ -6,13 +7,17 @@ import '../auth/token_store.dart';
 import '../config.dart';
 import '../database/database.dart';
 import '../database/database_provider.dart';
+import 'auto_sync.dart';
 import 'data_api_client.dart';
 import 'sync_engine.dart';
 
 final tokenStoreProvider = Provider<TokenStore>((ref) => const TokenStore());
 
 final neonAuthClientProvider = Provider<NeonAuthClient>((ref) {
-  final client = NeonAuthClient(baseUrl: TraceConfig.authBaseUrl);
+  final client = NeonAuthClient(
+    baseUrl: TraceConfig.authBaseUrl,
+    origin: TraceConfig.authOrigin,
+  );
   ref.onDispose(client.dispose);
   return client;
 });
@@ -61,7 +66,11 @@ class SyncController extends Notifier<SyncStatus> {
 
   Future<void> syncNow() async {
     state = const SyncRunning();
-    state = await ref.read(syncEngineProvider).sync();
+    final result = await ref.read(syncEngineProvider).sync();
+    // A dead session is cleared rather than left to fail on every trigger:
+    // the Sync screen falls back to its sign-in form, and auto-sync stops.
+    if (result is SyncFailed && result.sessionEnded) await _forgetSession();
+    state = result;
   }
 
   Future<String?> signIn({
@@ -84,19 +93,36 @@ class SyncController extends Notifier<SyncStatus> {
   }
 
   Future<void> signOut() async {
-    final store = ref.read(tokenStoreProvider);
-    final token = await store.readSession();
+    final token = await ref.read(tokenStoreProvider).readSession();
     if (token != null) {
       await ref.read(neonAuthClientProvider).signOut(token);
     }
     // Cleared even if the network call failed — a sign-out that leaves the
     // token on disk is not a sign-out.
-    await store.clear();
+    await _forgetSession();
+    state = const SyncIdle(null);
+  }
+
+  Future<void> _forgetSession() async {
+    await ref.read(tokenStoreProvider).clear();
     ref.read(sessionControllerProvider).invalidate();
     ref.invalidate(signedInProvider);
-    state = const SyncIdle(null);
   }
 }
 
 final syncControllerProvider =
     NotifierProvider<SyncController, SyncStatus>(SyncController.new);
+
+/// Keeps sync running in the background while signed in. Watched once, by the
+/// app root; rebuilt — and so started or stopped — as sign-in state changes.
+final autoSyncProvider = Provider<void>((ref) {
+  if (!TraceConfig.syncConfigured) return;
+  if (!(ref.watch(signedInProvider).value ?? false)) return;
+
+  final auto = AutoSync(
+    sync: () => ref.read(syncControllerProvider.notifier).syncNow(),
+    dirtyChanges: ref.watch(databaseProvider).watchHasDirtyRows(),
+    connectivity: Connectivity().onConnectivityChanged,
+  );
+  ref.onDispose(auto.dispose);
+});

@@ -1,4 +1,6 @@
+import 'dart:async';
 
+import '../auth/neon_auth_client.dart' show AuthException;
 import '../database/database.dart';
 import 'conflict.dart';
 import 'data_api_client.dart';
@@ -20,8 +22,12 @@ class SyncRunning extends SyncStatus {
 }
 
 class SyncFailed extends SyncStatus {
-  const SyncFailed(this.message);
+  const SyncFailed(this.message, {this.sessionEnded = false});
   final String message;
+
+  /// The auth service refused the stored session outright — it expired or was
+  /// revoked. Retrying cannot help; only signing in again can.
+  final bool sessionEnded;
 }
 
 /// Reconciles local SQLite with Neon.
@@ -63,7 +69,7 @@ class SyncEngine {
       // muted line in Settings. No banner, no modal.
       final message = _describe(e);
       await _db.updateSyncState(error: message);
-      return SyncFailed(message);
+      return SyncFailed(message, sessionEnded: _sessionEnded(e));
     } finally {
       _running = false;
     }
@@ -191,11 +197,20 @@ class SyncEngine {
     return current;
   }
 
+  /// Only a 401 from the token exchange means the session itself is dead. A
+  /// 401 from the Data API is retried with a fresh JWT inside DataApiClient,
+  /// and one that survives that retry points at configuration, not the session.
+  static bool _sessionEnded(Object e) =>
+      e is AuthException && e.statusCode == 401;
+
   static String _describe(Object e) {
+    if (_sessionEnded(e)) return 'Signed out — sign in again';
     final text = e.toString();
     // Never surface a raw exception: it can carry URLs and, from the auth
     // layer, token material.
-    if (text.contains('SocketException') || text.contains('Failed host')) {
+    if (e is TimeoutException ||
+        text.contains('SocketException') ||
+        text.contains('Failed host')) {
       return 'No connection';
     }
     if (text.contains('Not signed in')) return 'Not signed in';

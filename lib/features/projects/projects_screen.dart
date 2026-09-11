@@ -27,10 +27,10 @@ class ProjectsScreen extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(
-                TraceSpace.gutter,
+              padding: EdgeInsets.fromLTRB(
+                context.gutter,
                 TraceSpace.lg,
-                TraceSpace.gutter,
+                context.gutter,
                 0,
               ),
               child: Row(
@@ -66,10 +66,10 @@ class ProjectsScreen extends ConsumerWidget {
 
   Widget _list(BuildContext context, List<Project> projects) {
     return ListView.separated(
-      padding: const EdgeInsets.fromLTRB(
-        TraceSpace.gutter,
+      padding: EdgeInsets.fromLTRB(
+        context.gutter,
         TraceSpace.xl,
-        TraceSpace.gutter,
+        context.gutter,
         TraceSpace.xxxl,
       ),
       itemCount: projects.length,

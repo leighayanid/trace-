@@ -1,0 +1,5 @@
+{
+  "NEON_AUTH_BASE_URL": "https://ep-XXX.neonauth.REGION.aws.neon.tech/neondb/auth",
+  "NEON_DATA_API_URL": "https://ep-XXX.apirest.REGION.aws.neon.tech/neondb/rest/v1",
+  "NEON_AUTH_ORIGIN": "http://localhost:3000"
+}

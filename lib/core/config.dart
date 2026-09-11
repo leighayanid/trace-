@@ -1,11 +1,10 @@
 /// Build-time configuration for the optional sync backend.
 ///
-/// Supplied with --dart-define so no URL is baked into the repository:
+/// Supplied at build time so no URL is baked into the repository. Copy
+/// `config/neon.example.json` to `config/neon.json` (gitignored), then:
 ///
 /// ```
-/// flutter run \
-///   --dart-define=NEON_AUTH_BASE_URL=https://ENDPOINT.neonauth.REGION.aws.neon.tech/neondb/auth \
-///   --dart-define=NEON_DATA_API_URL=https://ENDPOINT.apirest.REGION.aws.neon.tech/neondb/rest/v1
+/// flutter run --dart-define-from-file=config/neon.json
 /// ```
 ///
 /// These are not secrets — the Data API URL is a public endpoint and RLS is what
@@ -17,6 +16,14 @@ abstract final class TraceConfig {
 
   static const dataApiUrl =
       String.fromEnvironment('NEON_DATA_API_URL');
+
+  /// Sent as `Origin` on auth POSTs; must be one of the project's trusted
+  /// domains. The default works only while "Allow Localhost" is on, which is
+  /// fine for development and what Neon's production checklist turns off.
+  static const authOrigin = String.fromEnvironment(
+    'NEON_AUTH_ORIGIN',
+    defaultValue: 'http://localhost:3000',
+  );
 
   /// False in a plain `flutter run`, which is the normal local-first case.
   /// Every sync surface stays hidden rather than offering a button that cannot

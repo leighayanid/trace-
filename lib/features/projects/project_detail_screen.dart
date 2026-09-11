@@ -39,10 +39,10 @@ class ProjectDetailScreen extends ConsumerWidget {
       backgroundColor: c.bg,
       body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(
-            TraceSpace.gutter,
+          padding: EdgeInsets.fromLTRB(
+            context.gutter,
             0,
-            TraceSpace.gutter,
+            context.gutter,
             TraceSpace.xxxl,
           ),
           children: [

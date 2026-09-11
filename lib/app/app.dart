@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/sync/sync_providers.dart' show autoSyncProvider;
 import 'router.dart';
 import 'theme/theme.dart';
 import 'theme/theme_mode.dart';
@@ -19,6 +20,9 @@ class _TraceAppState extends ConsumerState<TraceApp> {
 
   @override
   Widget build(BuildContext context) {
+    // Background sync while signed in; a no-op in a local-only build.
+    ref.watch(autoSyncProvider);
+
     return MaterialApp.router(
       title: 'TRACE',
       debugShowCheckedModeBanner: false,

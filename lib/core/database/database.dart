@@ -361,6 +361,19 @@ class AppDatabase extends _$AppDatabase {
         : SyncRow(id: row.id, updatedAt: row.updatedAt, dirty: row.dirty);
   }
 
+  /// Whether any row is waiting to be pushed. Re-emits on every write to the
+  /// synced tables, which is what lets auto-sync follow the user's edits
+  /// without the repositories knowing sync exists.
+  Stream<bool> watchHasDirtyRows() {
+    return customSelect(
+      'SELECT EXISTS (SELECT 1 FROM entries WHERE dirty = 1)'
+      ' OR EXISTS (SELECT 1 FROM projects WHERE dirty = 1)'
+      ' OR EXISTS (SELECT 1 FROM books WHERE dirty = 1)'
+      ' OR EXISTS (SELECT 1 FROM notes WHERE dirty = 1) AS dirty',
+      readsFrom: {entries, projects, books, notes},
+    ).watchSingle().map((row) => row.read<bool>('dirty'));
+  }
+
   Future<SyncState?> syncState() =>
       (select(syncStates)..where((t) => t.id.equals(1))).getSingleOrNull();
 

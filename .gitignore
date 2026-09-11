@@ -48,3 +48,7 @@ app.*.map.json
 android/key.properties
 **/*.jks
 **/*.keystore
+
+# Backend URLs. Not secrets, but one person's project; the example is the
+# template. See lib/core/config.dart.
+config/neon.json

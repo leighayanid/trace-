@@ -1,3 +1,7 @@
+import 'dart:math' as math;
+
+import 'package:flutter/widgets.dart';
+
 /// TRACE spacing and shape tokens — a 4pt grid.
 ///
 /// Separation comes from hairlines and whitespace, never elevation. There are no
@@ -11,7 +15,8 @@ abstract final class TraceSpace {
   static const xxl = 28.0;
   static const xxxl = 40.0;
 
-  /// Horizontal screen gutter.
+  /// Horizontal screen gutter — the minimum. Screens should use
+  /// [TraceLayoutX.gutter], which widens it on large displays.
   static const gutter = 20.0;
 
   /// Vertical gap between labelled sections.
@@ -37,10 +42,30 @@ abstract final class TraceSize {
   static const track = 3.0;
 
   /// The nav bar's centre `+` circle. Prominent, not oversized.
-  static const navPlus = 44.0;
+  static const navPlus = 48.0;
 
-  static const navBar = 60.0;
+  /// Nav bar height at the default text scale, excluding the system inset.
+  static const navBar = 72.0;
+
+  /// The nav destinations stop spreading apart past this width, so on a tablet
+  /// they stay a single reachable group rather than drifting to the edges.
+  static const navMaxWidth = 520.0;
+
+  /// Readable measure for screen content. Past this, the gutters grow instead
+  /// of the lines.
+  static const contentMaxWidth = 560.0;
 
   /// Standard tappable height for full-width buttons.
   static const button = 48.0;
+}
+
+extension TraceLayoutX on BuildContext {
+  /// Horizontal screen padding: [TraceSpace.gutter] on a phone, widening on
+  /// larger displays so content holds at [TraceSize.contentMaxWidth] and sits
+  /// centred. Padding rather than a constrained box keeps the scroll area — and
+  /// its scrollbar — full width.
+  double get gutter {
+    final width = MediaQuery.sizeOf(this).width;
+    return math.max(TraceSpace.gutter, (width - TraceSize.contentMaxWidth) / 2);
+  }
 }

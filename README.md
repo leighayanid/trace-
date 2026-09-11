@@ -18,13 +18,41 @@ That is the whole app. No account, no server, no configuration — everything
 lives in a SQLite file on the device.
 
 Sync is optional and stays hidden unless both backend URLs are supplied at
-build time. See `lib/core/config.dart`:
+build time. Copy `config/neon.example.json` to `config/neon.json` (gitignored),
+fill in the two URLs from the Neon Console, then:
 
 ```bash
-flutter run \
-  --dart-define=NEON_AUTH_BASE_URL=https://ENDPOINT.neonauth.REGION.aws.neon.tech/neondb/auth \
-  --dart-define=NEON_DATA_API_URL=https://ENDPOINT.apirest.REGION.aws.neon.tech/neondb/rest/v1
+flutter run --dart-define-from-file=config/neon.json
 ```
+
+## Sync backend (Neon)
+
+One-time setup, in order:
+
+1. In the Neon Console, open **Data API** and enable it with **Managed Better
+   Auth**. This also creates the `authenticated` role the schema grants to.
+2. Run `db/migrations/001_schema.sql` in the SQL Editor.
+3. Create the one account: `bash tool/neon_check.sh`, answering `y`. The same
+   script, answering `n`, re-checks sign-in, the token exchange and RLS at any
+   time. It never prints a token.
+
+Before shipping a release build:
+
+- **Disable sign-ups**, so the public auth endpoint cannot mint accounts:
+  Console → Auth settings, or
+  `neon neon-auth config email-password update --disable-sign-up`.
+- **Stop relying on localhost.** Add a trusted domain you control
+  (`neon neon-auth domain add https://trace.example.com`), set
+  `NEON_AUTH_ORIGIN` to it in `config/neon.json`, then turn **Allow Localhost**
+  off. Re-run the check with `NEON_AUTH_ORIGIN=… bash tool/neon_check.sh`.
+- Build with the config: every `flutter build` below takes
+  `--dart-define-from-file=config/neon.json`. Without it the build is
+  local-only and shows no Sync screen at all.
+
+Once signed in, the app syncs on its own — on launch, on resume, when the
+network returns and a few seconds after an edit. If the session ends, it
+signs out quietly and the Sync screen asks for the password again; nothing
+local is touched.
 
 ## Tests
 
@@ -53,8 +81,8 @@ Then copy `android/key.properties.example` to `android/key.properties` and fill
 it in.
 
 ```bash
-flutter build appbundle --release   # Play Store
-flutter build apk --release --split-per-abi   # sideloading, ~21 MB each
+flutter build appbundle --release --dart-define-from-file=config/neon.json   # Play Store
+flutter build apk --release --split-per-abi --dart-define-from-file=config/neon.json   # sideloading, ~21 MB each
 ```
 
 A plain `flutter build apk --release` produces one ~59 MB APK carrying all three
@@ -67,7 +95,7 @@ Signing & Capabilities). It needs an Apple developer account and a Mac, and is
 not scripted here.
 
 ```bash
-flutter build ipa --release
+flutter build ipa --release --dart-define-from-file=config/neon.json
 ```
 
 ### Icons

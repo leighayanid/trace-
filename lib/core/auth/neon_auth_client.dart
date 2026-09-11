@@ -41,7 +41,7 @@ class AuthException implements Exception {
 class NeonAuthClient {
   NeonAuthClient({
     required this.baseUrl,
-    this.origin = defaultOrigin,
+    required this.origin,
     http.Client? httpClient,
   }) : _http = httpClient ?? http.Client();
 
@@ -52,12 +52,9 @@ class NeonAuthClient {
   /// Sent as `Origin` on every POST, which Better Auth requires.
   ///
   /// A native app has no real origin, so this is a label the server checks
-  /// against its trusted domains. Localhost is trusted while the project's
-  /// "Allow Localhost" setting is on (Neon's default). Turn that off and this
-  /// must become a domain added with `neon neon-auth domain add`.
+  /// against its trusted domains. Configured as `NEON_AUTH_ORIGIN`; see
+  /// `TraceConfig.authOrigin`.
   final String origin;
-
-  static const defaultOrigin = 'http://localhost:3000';
 
   final http.Client _http;
 

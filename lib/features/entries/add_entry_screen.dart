@@ -94,10 +94,10 @@ class _AddEntryScreenState extends ConsumerState<AddEntryScreen> {
             SaveSweep(active: _saving),
             Expanded(
               child: ListView(
-                padding: const EdgeInsets.fromLTRB(
-                  TraceSpace.gutter,
+                padding: EdgeInsets.fromLTRB(
+                  context.gutter,
                   0,
-                  TraceSpace.gutter,
+                  context.gutter,
                   TraceSpace.xxxl,
                 ),
                 children: [
@@ -161,10 +161,11 @@ class _AddEntryScreenState extends ConsumerState<AddEntryScreen> {
   Widget _topBar(BuildContext context) {
     final c = context.traceColors;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        TraceSpace.md,
+      // The back chevron's own padding makes up the rest of the left gutter.
+      padding: EdgeInsets.fromLTRB(
+        context.gutter - TraceSpace.sm,
         TraceSpace.sm,
-        TraceSpace.gutter,
+        context.gutter,
         TraceSpace.lg,
       ),
       child: Row(
