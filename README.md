@@ -36,7 +36,17 @@ One-time setup, in order:
    script, answering `n`, re-checks sign-in, the token exchange and RLS at any
    time. It never prints a token.
 
-Before shipping a release build:
+Before shipping a release build, run:
+
+```bash
+bash tool/ship.sh
+```
+
+It logs in to Neon, writes `config/neon.json` from the project, signs in once
+to prove the settings work, then does the lock-down below and builds the
+release bundle — and offers to install it on a connected Android phone. It
+asks before changing anything on Neon and is safe to re-run. By hand, the same
+steps are:
 
 - **Disable sign-ups**, so the public auth endpoint cannot mint accounts:
   Console → Auth settings, or

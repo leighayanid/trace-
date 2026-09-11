@@ -8,7 +8,10 @@
 #
 #   NEON_AUTH_ORIGIN=https://your.domain bash tool/neon_check.sh
 #
-# Prompts for everything, so nothing sensitive lands in shell history. Prints
+# NEON_AUTH_BASE_URL and NEON_DATA_API_URL are read from the environment when
+# set; anything missing is prompted for.
+#
+# Prompts for the password, so nothing sensitive lands in shell history. Prints
 # status codes, header names and yes/no answers — never a token, because a
 # session token is as good as the password.
 set -euo pipefail
@@ -20,8 +23,11 @@ json_escape() { local s=${1//\\/\\\\}; printf '%s' "${s//\"/\\\"}"; }
 token_in() { sed -n 's/.*"token":"\([^"]*\)".*/\1/p' "$1" | head -1; }
 header_in() { grep -i "^$1:" "$2" | head -1 | cut -d' ' -f2- | tr -d '\r' || true; }
 
-read -rp 'Auth URL (ends in /neondb/auth): ' AUTH
-read -rp 'Data API URL (ends in /neondb/rest/v1): ' API
+# tool/ship.sh passes the URLs in; asked for only when run by hand.
+AUTH=${NEON_AUTH_BASE_URL:-}
+API=${NEON_DATA_API_URL:-}
+[[ -n $AUTH ]] || read -rp 'Auth URL (ends in /neondb/auth): ' AUTH
+[[ -n $API ]] || read -rp 'Data API URL (ends in /neondb/rest/v1): ' API
 read -rp 'Email: ' EMAIL
 read -rsp 'Password: ' PASSWORD; echo
 read -rp 'Create the account now? Only the first time. [y/N] ' NEW
