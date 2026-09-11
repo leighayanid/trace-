@@ -68,7 +68,7 @@ class DataApiClient {
   /// Upserts a batch, keyed on the primary key.
   ///
   /// `user_id` is deliberately absent from the payload: the column defaults to
-  /// `auth.user_id()`, so the server decides ownership from the token and a
+  /// `auth.uid()`, so the server decides ownership from the token and a
   /// client cannot claim to be someone else.
   Future<void> push({
     required String table,

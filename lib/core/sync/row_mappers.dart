@@ -7,7 +7,7 @@ import '../database/database.dart';
 /// Translates between Drift rows and Data API JSON.
 ///
 /// `dirty` and `synced_at` are local bookkeeping and never cross the wire.
-/// `user_id` is never sent either — the column defaults to `auth.user_id()`, so
+/// `user_id` is never sent either — the column defaults to `auth.uid()`, so
 /// ownership is decided by the token rather than claimed by the client.
 abstract final class RowMappers {
   static String? _iso(DateTime? d) => d?.toUtc().toIso8601String();

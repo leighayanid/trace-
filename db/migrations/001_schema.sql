@@ -4,7 +4,8 @@
 -- minus the local-only sync bookkeeping (dirty, synced_at) which never leaves
 -- the device.
 --
--- Run against a Neon branch:
+-- Run against a Neon branch, *after* enabling the Data API — that is what
+-- creates the `authenticated` role the grants below look for:
 --   psql "$DATABASE_URL" -f db/migrations/001_schema.sql
 --
 -- TRACE has one user. RLS is still mandatory: the Data API endpoint is public
@@ -13,14 +14,16 @@
 
 begin;
 
--- Provides auth.user_id(), which reads the `sub` claim from the validated JWT.
+-- Provides the auth.* functions, which read the `sub` claim from the validated
+-- JWT. auth.uid() returns it as uuid; auth.user_id() returns text and would
+-- not match these uuid columns.
 create extension if not exists pg_session_jwt;
 
 -- ── Tables ──────────────────────────────────────────────────────────────────
 
 create table if not exists projects (
   id            uuid primary key,
-  user_id       uuid not null default auth.user_id(),
+  user_id       uuid not null default auth.uid(),
   name          text not null,
   description   text,
   status        text not null default 'active'
@@ -37,7 +40,7 @@ create table if not exists projects (
 
 create table if not exists books (
   id            uuid primary key,
-  user_id       uuid not null default auth.user_id(),
+  user_id       uuid not null default auth.uid(),
   title         text not null,
   author        text,
   cover_path    text,
@@ -54,7 +57,7 @@ create table if not exists books (
 
 create table if not exists entries (
   id            uuid primary key,
-  user_id       uuid not null default auth.user_id(),
+  user_id       uuid not null default auth.uid(),
   category      text not null
                   check (category in ('build','read','explore','life')),
   title         text not null,
@@ -77,7 +80,7 @@ create table if not exists entries (
 
 create table if not exists notes (
   id            uuid primary key,
-  user_id       uuid not null default auth.user_id(),
+  user_id       uuid not null default auth.uid(),
   body          text not null,
   kind          text not null default 'note'
                   check (kind in ('one_line','thought','quote','note')),
@@ -92,7 +95,7 @@ create table if not exists notes (
 
 create table if not exists proofs (
   id            uuid primary key,
-  user_id       uuid not null default auth.user_id(),
+  user_id       uuid not null default auth.uid(),
   entry_id      uuid not null references entries(id) on delete cascade,
   kind          text not null
                   check (kind in ('git','screenshot','note','link','file')),
@@ -146,8 +149,8 @@ begin
     execute format($f$
       create policy %I_owner on %I
         for all
-        using      (user_id = auth.user_id())
-        with check  (user_id = auth.user_id())
+        using      (user_id = auth.uid())
+        with check  (user_id = auth.uid())
     $f$, t, t);
   end loop;
 end $$;

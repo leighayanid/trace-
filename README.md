@@ -22,7 +22,7 @@ build time. See `lib/core/config.dart`:
 
 ```bash
 flutter run \
-  --dart-define=NEON_AUTH_BASE_URL=https://PROJECT.auth.neon.tech \
+  --dart-define=NEON_AUTH_BASE_URL=https://ENDPOINT.neonauth.REGION.aws.neon.tech/neondb/auth \
   --dart-define=NEON_DATA_API_URL=https://ENDPOINT.apirest.REGION.aws.neon.tech/neondb/rest/v1
 ```
 

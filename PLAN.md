@@ -345,8 +345,8 @@ alter table entries enable row level security;
 
 create policy entries_owner on entries
   for all
-  using      (user_id = auth.user_id())
-  with check (user_id = auth.user_id());
+  using      (user_id = auth.uid())   -- uuid; auth.user_id() is text
+  with check (user_id = auth.uid());
 
 create index entries_sync_idx on entries (user_id, updated_at);
 create index entries_date_idx on entries (user_id, date desc);
@@ -599,14 +599,18 @@ be `RepaintBoundary`-wrapped so their animation does not repaint the scroll view
 > the Dart:
 >
 > ```bash
+> # NEON_AUTH_BASE_URL is the Console's Auth URL and already ends in
+> # /neondb/auth — endpoints hang directly off it, with no /api/auth prefix.
+> # No Origin header, deliberately: the app does not send one either.
+>
 > # 1. Does sign-in return a session token in a header?
-> curl -i -X POST "$NEON_AUTH_BASE_URL/api/auth/sign-up/email" \
+> curl -i -X POST "$NEON_AUTH_BASE_URL/sign-up/email" \
 >   -H 'Content-Type: application/json' \
 >   -d '{"email":"...","password":"...","name":"Leigh"}'
-> #    inspect response headers for `set-auth-token`
+> #    inspect response headers for `set-auth-token`, and the body for `token`
 >
 > # 2. Does the session token exchange for a JWT?
-> curl -s "$NEON_AUTH_BASE_URL/api/auth/token" \
+> curl -s "$NEON_AUTH_BASE_URL/token" \
 >   -H "Authorization: Bearer $SESSION_TOKEN"
 >
 > # 3. Does that JWT satisfy RLS?

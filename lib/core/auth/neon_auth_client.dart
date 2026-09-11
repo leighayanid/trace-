@@ -25,7 +25,7 @@ class AuthException implements Exception {
 /// - the **session token** is opaque and long-lived. It is returned by sign-in
 ///   in the `set-auth-token` response header and talks only to the auth
 ///   service. It belongs in secure storage.
-/// - the **JWT** is short-lived, fetched from `/api/auth/token` using the
+/// - the **JWT** is short-lived, fetched from `/token` using the
 ///   session token, and is the only thing the Data API will accept. It belongs
 ///   in memory.
 ///
@@ -43,13 +43,14 @@ class NeonAuthClient {
   NeonAuthClient({required this.baseUrl, http.Client? httpClient})
       : _http = httpClient ?? http.Client();
 
-  /// e.g. `https://PROJECT.auth.neon.tech`
+  /// The Auth URL from the Neon Console, which already ends in the auth path:
+  /// `https://ep-XXX.neonauth.REGION.aws.neon.tech/neondb/auth`.
   final String baseUrl;
   final http.Client _http;
 
   static const _timeout = Duration(seconds: 20);
 
-  Uri _uri(String path) => Uri.parse('$baseUrl/api/auth$path');
+  Uri _uri(String path) => Uri.parse('$baseUrl$path');
 
   /// Signs in and returns the **session** token.
   Future<String> signIn({
