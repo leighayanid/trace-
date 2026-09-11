@@ -17,8 +17,9 @@ abstract final class PrefKeys {
 /// and the app never paints in the wrong theme first.
 Future<SharedPreferencesWithCache> openPreferences() =>
     SharedPreferencesWithCache.create(
-      cacheOptions:
-          const SharedPreferencesWithCacheOptions(allowList: PrefKeys.all),
+      cacheOptions: const SharedPreferencesWithCacheOptions(
+        allowList: PrefKeys.all,
+      ),
     );
 
 final preferencesProvider = Provider<SharedPreferencesWithCache>(

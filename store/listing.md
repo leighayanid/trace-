@@ -17,7 +17,7 @@ Subtitle (App Store, 30 max): `Build. Read. Explore. Live.`
 A quiet record of what you actually did. No streaks, no scores, no account.
 ```
 
-(76 characters)
+(75 characters)
 
 ## Full description
 

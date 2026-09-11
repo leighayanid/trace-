@@ -5,8 +5,8 @@ import 'package:intl/intl.dart';
 
 import '../../app/theme/theme.dart';
 import '../../shared/models/category.dart';
-import '../../shared/widgets/press_scale.dart';
 import '../../shared/widgets/section_label.dart';
+import '../../shared/widgets/trace_segmented.dart';
 import 'insights_providers.dart';
 import 'widgets/consistency_row.dart';
 import 'widgets/donut_chart.dart';
@@ -55,46 +55,13 @@ class InsightsScreen extends ConsumerWidget {
   }
 
   Widget _segmented(BuildContext context, WidgetRef ref, InsightsRange range) {
-    final c = context.traceColors;
-    final notifier = ref.read(insightsRangeProvider.notifier);
-
-    Widget tab(String label, InsightsRange value) {
-      final selected = range == value;
-      return Expanded(
-        child: PressScale(
-          onTap: () => notifier.select(value),
-          child: AnimatedContainer(
-            duration: TraceMotion.fast,
-            curve: TraceMotion.standard,
-            padding: const EdgeInsets.symmetric(vertical: TraceSpace.sm),
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: selected ? c.navy : Colors.transparent,
-              borderRadius: BorderRadius.circular(TraceRadius.button - 2),
-            ),
-            child: Text(
-              label,
-              style: TraceText.rowSubtitle.copyWith(
-                color: selected ? c.onNavy : c.textSecondary,
-              ),
-            ),
-          ),
-        ),
-      );
-    }
-
-    return Container(
-      padding: const EdgeInsets.all(3),
-      decoration: BoxDecoration(
-        color: c.navyLight,
-        borderRadius: BorderRadius.circular(TraceRadius.button),
-      ),
-      child: Row(
-        children: [
-          tab('This Month', InsightsRange.month),
-          tab('This Year', InsightsRange.year),
-        ],
-      ),
+    return TraceSegmented<InsightsRange>(
+      segments: const {
+        InsightsRange.month: 'This Month',
+        InsightsRange.year: 'This Year',
+      },
+      selected: range,
+      onSelect: ref.read(insightsRangeProvider.notifier).select,
     );
   }
 

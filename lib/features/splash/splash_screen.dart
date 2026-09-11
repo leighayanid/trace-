@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../app/theme/theme.dart';
 
@@ -72,93 +73,103 @@ class _SplashScreenState extends State<SplashScreen>
     const white = Color(0xFFF5F5F2);
     const muted = Color(0xFF858991);
 
-    return Scaffold(
-      backgroundColor: ink,
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          ScaleTransition(
-            scale: _bgScale,
-            child: Image.asset(
-              'assets/images/splash.jpg',
-              fit: BoxFit.cover,
-              // The ink field shows through until the asset decodes, so the
-              // first frame is never a white flash.
-              errorBuilder: (_, _, _) => const ColoredBox(color: ink),
-            ),
-          ),
-          // A legibility scrim, not decoration: dark where the type sits, clear
-          // across the middle so the peak still reads. Without it the wordmark
-          // would fall on snow and disappear.
-          const DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Color(0xC20B0D10),
-                  Color(0x4D0B0D10),
-                  Color(0x8A0B0D10),
-                  Color(0xEB0B0D10),
-                ],
-                stops: [0.0, 0.42, 0.74, 1.0],
+    // Light system-bar icons regardless of the app theme, for the same reason.
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        systemNavigationBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.light,
+        systemNavigationBarIconBrightness: Brightness.light,
+        statusBarBrightness: Brightness.dark,
+      ),
+      child: Scaffold(
+        backgroundColor: ink,
+        body: Stack(
+          fit: StackFit.expand,
+          children: [
+            ScaleTransition(
+              scale: _bgScale,
+              child: Image.asset(
+                'assets/images/splash.jpg',
+                fit: BoxFit.cover,
+                // The ink field shows through until the asset decodes, so the
+                // first frame is never a white flash.
+                errorBuilder: (_, _, _) => const ColoredBox(color: ink),
               ),
             ),
-            child: SizedBox.expand(),
-          ),
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(TraceSpace.xxl),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Sits high, in the sky band. Lower and the wordmark lands on
-                  // the snowfield, where white type has nothing to hold against.
-                  const Spacer(flex: 2),
-                  FadeTransition(
-                    opacity: _markFade,
-                    child: AnimatedBuilder(
-                      animation: _tracking,
-                      builder: (context, _) => Text(
-                        'TRACE',
-                        style: TraceText.wordmark.copyWith(
-                          color: white,
-                          letterSpacing: _tracking.value,
+            // A legibility scrim, not decoration: dark where the type sits, clear
+            // across the middle so the peak still reads. Without it the wordmark
+            // would fall on snow and disappear.
+            const DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Color(0xC20B0D10),
+                    Color(0x4D0B0D10),
+                    Color(0x8A0B0D10),
+                    Color(0xEB0B0D10),
+                  ],
+                  stops: [0.0, 0.42, 0.74, 1.0],
+                ),
+              ),
+              child: SizedBox.expand(),
+            ),
+            SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.all(TraceSpace.xxl),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Sits high, in the sky band. Lower and the wordmark lands on
+                    // the snowfield, where white type has nothing to hold against.
+                    const Spacer(flex: 2),
+                    FadeTransition(
+                      opacity: _markFade,
+                      child: AnimatedBuilder(
+                        animation: _tracking,
+                        builder: (context, _) => Text(
+                          'TRACE',
+                          style: TraceText.wordmark.copyWith(
+                            color: white,
+                            letterSpacing: _tracking.value,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: TraceSpace.md),
-                  FadeTransition(
-                    opacity: _taglineFade,
-                    child: Text(
-                      'Build. Read. Explore. Live.',
-                      style: TraceText.rowSubtitle.copyWith(color: muted),
+                    const SizedBox(height: TraceSpace.md),
+                    FadeTransition(
+                      opacity: _taglineFade,
+                      child: Text(
+                        'Build. Read. Explore. Live.',
+                        style: TraceText.rowSubtitle.copyWith(color: muted),
+                      ),
                     ),
-                  ),
-                  const Spacer(flex: 4),
-                  FadeTransition(
-                    opacity: _footerFade,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(width: 24, height: 1, color: muted),
-                        const SizedBox(height: TraceSpace.md),
-                        Text(
-                          'A quiet record\nof what you do.',
-                          style: TraceText.rowSubtitle.copyWith(
-                            color: muted,
-                            height: 1.5,
+                    const Spacer(flex: 4),
+                    FadeTransition(
+                      opacity: _footerFade,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(width: 24, height: 1, color: muted),
+                          const SizedBox(height: TraceSpace.md),
+                          Text(
+                            'A quiet record\nof what you do.',
+                            style: TraceText.rowSubtitle.copyWith(
+                              color: muted,
+                              height: 1.5,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

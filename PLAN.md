@@ -545,7 +545,7 @@ be `RepaintBoundary`-wrapped so their animation does not repaint the scroll view
 
 ## 9. Phased delivery
 
-> **Status — 2026-09-10**
+> **Status — 2026-09-11**
 > - **Phase 0: complete.** Analyze clean, debug APK built.
 > - **Phase 1: complete.** Drift schema generated, parser at 21 passing tests,
 >   Quick Add + Add Entry + Today wired to live SQLite.
@@ -560,7 +560,36 @@ be `RepaintBoundary`-wrapped so their animation does not repaint the scroll view
 >   refresh-ahead and single-flight, Data API client, sync engine, and an opt-in
 >   Sync screen. Conflict resolution has 13 tests. **Nothing here has spoken to a
 >   real server.** See the checklist below before trusting it.
-> - Next: **Phase 5** (export, delete-all, icons, release config).
+> - **Phase 5: complete except for the parts that need hardware or accounts.**
+>   JSON + CSV export through the share sheet, delete-all with a typed
+>   confirmation, launcher icons (legacy, adaptive and Android 13 themed) from one
+>   script, a launch window that matches the splash, keystore-based release
+>   signing with R8 shrinking, and store copy with data-safety answers. The
+>   release APK builds. 22 new tests (56 total).
+>   Still needs: store screenshots (need a real week of entries), a hosted privacy
+>   policy URL, a release keystore, and iOS signing (needs a Mac).
+> - Next: run the **Phase 4 verification checklist** below. It is the only part
+>   of the plan that has never touched reality.
+>
+> ### Phase 5 decisions worth knowing
+>
+> - **The JSON export is the sync wire format.** It reuses `RowMappers`, so an
+>   archive can be read back through the same `*FromJson` constructors — a test
+>   proves the round trip. There is no import screen yet. The format makes one
+>   cheap to add when you want it.
+> - **Delete-all is the only hard DELETE in the app.** Everywhere else a delete
+>   is a tombstone. When signed in, it tombstones everything, pushes, and only
+>   then erases locally. If the push fails, the rows stay as hidden tombstones
+>   and the deletion finishes on the next sync, because a local wipe that skipped
+>   the push would come straight back on the next pull. This path is tested
+>   against the database but, like the rest of Phase 4, **not against a server**.
+> - **The Presence explainer already existed** (How TRACE works, from Phase 2),
+>   so nothing new was built for it.
+> - **The icon is four unequal rules on navy**: a day of entries seen from a
+>   distance. `tool/make_icons.py` generates every size from one definition.
+> - **The launch window is dark in both themes.** It matches the splash
+>   photograph, not the system theme, so a light-mode cold start goes straight
+>   from dark to the splash instead of flashing white first.
 >
 > ### Phase 4 verification checklist — do this first
 >

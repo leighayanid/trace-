@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/theme/theme.dart';
+import '../../app/theme/theme_mode.dart';
 import '../../shared/widgets/press_scale.dart';
 import '../../shared/widgets/section_label.dart';
+import '../../shared/widgets/trace_segmented.dart';
 import '../../core/config.dart';
 import '../insights/insights_screen.dart';
 import '../reading/reading_screen.dart';
@@ -12,11 +15,11 @@ import 'sync_screen.dart';
 
 /// Secondary destinations. A flat list, one level deep — the brief rules out a
 /// multi-level navigation system.
-class MoreScreen extends StatelessWidget {
+class MoreScreen extends ConsumerWidget {
   const MoreScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final c = context.traceColors;
 
     return Scaffold(
@@ -38,6 +41,20 @@ class MoreScreen extends StatelessWidget {
             Divider(color: c.border, height: 1),
             _row(context, Icons.insights_outlined, 'Insights',
                 const InsightsScreen()),
+            const SizedBox(height: TraceSpace.section),
+            const SectionLabel('Appearance'),
+            const SizedBox(height: TraceSpace.md),
+            // Inline rather than a screen of its own: three choices do not
+            // earn a destination.
+            TraceSegmented<ThemeMode>(
+              segments: const {
+                ThemeMode.system: 'System',
+                ThemeMode.light: 'Light',
+                ThemeMode.dark: 'Dark',
+              },
+              selected: ref.watch(themeModeProvider),
+              onSelect: ref.read(themeModeProvider.notifier).select,
+            ),
             const SizedBox(height: TraceSpace.section),
             const SectionLabel('Data'),
             const SizedBox(height: TraceSpace.xs),
