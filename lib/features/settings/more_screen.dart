@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../app/theme/theme.dart';
 import '../../app/theme/theme_mode.dart';
 import '../../shared/widgets/press_scale.dart';
+import '../../shared/widgets/reveal.dart';
 import '../../shared/widgets/section_label.dart';
 import '../../shared/widgets/trace_segmented.dart';
 import '../../core/config.dart';
@@ -25,54 +26,79 @@ class MoreScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: c.bg,
       body: SafeArea(
-        child: ListView(
-          padding: EdgeInsets.fromLTRB(
-            context.gutter,
-            TraceSpace.lg,
-            context.gutter,
-            TraceSpace.xxxl,
-          ),
-          children: [
-            Text('More',
-                style: TraceText.screenTitle.copyWith(color: c.textPrimary)),
-            const SizedBox(height: TraceSpace.section),
-            _row(context, Icons.menu_book_outlined, 'Reading',
-                const ReadingScreen()),
-            Divider(color: c.border, height: 1),
-            _row(context, Icons.insights_outlined, 'Insights',
-                const InsightsScreen()),
-            const SizedBox(height: TraceSpace.section),
-            const SectionLabel('Appearance'),
-            const SizedBox(height: TraceSpace.md),
-            // Inline rather than a screen of its own: three choices do not
-            // earn a destination.
-            TraceSegmented<ThemeMode>(
-              segments: const {
-                ThemeMode.system: 'System',
-                ThemeMode.light: 'Light',
-                ThemeMode.dark: 'Dark',
-              },
-              selected: ref.watch(themeModeProvider),
-              onSelect: ref.read(themeModeProvider.notifier).select,
+        // Groups arrive in reading order the first time the tab is opened.
+        child: RevealScope(
+          child: ListView(
+            padding: EdgeInsets.fromLTRB(
+              context.gutter,
+              TraceSpace.lg,
+              context.gutter,
+              TraceSpace.xxxl,
             ),
-            const SizedBox(height: TraceSpace.section),
-            const SectionLabel('Data'),
-            const SizedBox(height: TraceSpace.xs),
-            _row(context, Icons.download_outlined, 'Export and delete',
-                const DataScreen()),
-            // Sync is hidden entirely unless a backend is configured. A row
-            // that cannot work is worse than no row — and the local-first app
-            // is complete without one.
-            if (TraceConfig.syncConfigured) ...[
-              Divider(color: c.border, height: 1),
-              _row(context, Icons.cloud_outlined, 'Sync', const SyncScreen()),
+            children: [
+              Text('More',
+                      style:
+                          TraceText.screenTitle.copyWith(color: c.textPrimary))
+                  .reveal(0),
+              const SizedBox(height: TraceSpace.section),
+              Column(
+                children: [
+                  _row(context, Icons.menu_book_outlined, 'Reading',
+                      const ReadingScreen()),
+                  Divider(color: c.border, height: 1),
+                  _row(context, Icons.insights_outlined, 'Insights',
+                      const InsightsScreen()),
+                ],
+              ).reveal(1),
+              const SizedBox(height: TraceSpace.section),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const SectionLabel('Appearance'),
+                  const SizedBox(height: TraceSpace.md),
+                  // Inline rather than a screen of its own: three choices do
+                  // not earn a destination.
+                  TraceSegmented<ThemeMode>(
+                    segments: const {
+                      ThemeMode.system: 'System',
+                      ThemeMode.light: 'Light',
+                      ThemeMode.dark: 'Dark',
+                    },
+                    selected: ref.watch(themeModeProvider),
+                    onSelect: ref.read(themeModeProvider.notifier).select,
+                  ),
+                ],
+              ).reveal(2),
+              const SizedBox(height: TraceSpace.section),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const SectionLabel('Data'),
+                  const SizedBox(height: TraceSpace.xs),
+                  _row(context, Icons.download_outlined, 'Export and delete',
+                      const DataScreen()),
+                  // Sync is hidden entirely unless a backend is configured. A
+                  // row that cannot work is worse than no row — and the
+                  // local-first app is complete without one.
+                  if (TraceConfig.syncConfigured) ...[
+                    Divider(color: c.border, height: 1),
+                    _row(context, Icons.cloud_outlined, 'Sync',
+                        const SyncScreen()),
+                  ],
+                ],
+              ).reveal(3),
+              const SizedBox(height: TraceSpace.section),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const SectionLabel('About'),
+                  const SizedBox(height: TraceSpace.xs),
+                  _row(context, Icons.info_outline_rounded, 'How TRACE works',
+                      const AboutScreen()),
+                ],
+              ).reveal(4),
             ],
-            const SizedBox(height: TraceSpace.section),
-            const SectionLabel('About'),
-            const SizedBox(height: TraceSpace.xs),
-            _row(context, Icons.info_outline_rounded, 'How TRACE works',
-                const AboutScreen()),
-          ],
+          ),
         ),
       ),
     );

@@ -21,6 +21,7 @@ class EntryRow extends StatelessWidget {
     this.heroTag,
     this.showChevron = true,
     this.animateValue = true,
+    this.valueDelay = Duration.zero,
   });
 
   final Category category;
@@ -41,6 +42,9 @@ class EntryRow extends StatelessWidget {
   final Object? heroTag;
   final bool showChevron;
   final bool animateValue;
+
+  /// Holds the duration's first count until the row itself has landed.
+  final Duration valueDelay;
 
   @override
   Widget build(BuildContext context) {
@@ -97,7 +101,7 @@ class EntryRow extends StatelessWidget {
       );
     }
     if (duration != null) {
-      return MonoDuration(duration!, animate: animateValue);
+      return MonoDuration(duration!, animate: animateValue, delay: valueDelay);
     }
     return const SizedBox.shrink();
   }

@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/theme/theme.dart';
+import '../../shared/widgets/press_scale.dart';
+import '../../shared/widgets/trace_sheet.dart';
 import 'reading_providers.dart';
 
 /// Adds a book. Title is the only required field.
@@ -14,10 +16,8 @@ class NewBookSheet extends ConsumerStatefulWidget {
   const NewBookSheet({super.key});
 
   static Future<void> show(BuildContext context) {
-    return showModalBottomSheet<void>(
+    return showTraceSheet<void>(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
       builder: (_) => const NewBookSheet(),
     );
   }
@@ -83,14 +83,12 @@ class _NewBookSheetState extends ConsumerState<NewBookSheet> {
                 const SizedBox(height: TraceSpace.lg),
                 _field(context, _author, 'Author (optional)'),
                 const SizedBox(height: TraceSpace.lg),
-                _field(context, _pages, 'Total pages (optional)',
-                    number: true),
+                _field(context, _pages, 'Total pages (optional)', number: true),
                 const SizedBox(height: TraceSpace.xl),
                 Align(
                   alignment: Alignment.centerRight,
-                  child: GestureDetector(
+                  child: PressScale(
                     onTap: _save,
-                    behavior: HitTestBehavior.opaque,
                     child: Padding(
                       padding: const EdgeInsets.all(TraceSpace.sm),
                       child: Text(

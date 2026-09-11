@@ -9,7 +9,10 @@ import '../../shared/models/category.dart';
 import '../../shared/widgets/category_glyph.dart';
 import '../../shared/widgets/mono_duration.dart';
 import '../../shared/widgets/press_scale.dart';
+import '../../shared/widgets/reveal.dart';
 import '../../shared/widgets/save_sweep.dart';
+import '../../shared/widgets/trace_button.dart';
+import '../../shared/widgets/trace_sheet.dart';
 import 'entry_providers.dart';
 
 /// The confirmation form. Every field the parser proposed is editable here —
@@ -93,63 +96,92 @@ class _AddEntryScreenState extends ConsumerState<AddEntryScreen> {
             // Sweeps left to right beneath the Save row, then the screen pops.
             SaveSweep(active: _saving),
             Expanded(
-              child: ListView(
-                padding: EdgeInsets.fromLTRB(
-                  context.gutter,
-                  0,
-                  context.gutter,
-                  TraceSpace.xxxl,
-                ),
-                children: [
-                  Text(
-                    widget.entryId == null ? 'Add Entry' : 'Edit Entry',
-                    style: TraceText.screenTitle.copyWith(color: c.textPrimary),
+              // The form follows the page in, field by field, top to bottom —
+              // the order it is filled in.
+              child: RevealScope(
+                delay: const Duration(milliseconds: 120),
+                child: SingleChildScrollView(
+                  padding: EdgeInsets.fromLTRB(
+                    context.gutter,
+                    0,
+                    context.gutter,
+                    TraceSpace.xxxl,
                   ),
-                  const SizedBox(height: TraceSpace.xl),
-                  _categoryRow(context),
-                  const SizedBox(height: TraceSpace.xl),
-                  _labelled(
-                    context,
-                    'Title',
-                    _TextRow(
-                      value: _title,
-                      hint: 'What was it?',
-                      onChanged: (v) => setState(() => _title = v),
-                    ),
-                  ),
-                  if (_category == Category.build) ...[
-                    const SizedBox(height: TraceSpace.xl),
-                    _labelled(
-                      context,
-                      'Project',
-                      _tappableRow(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        widget.entryId == null ? 'Add Entry' : 'Edit Entry',
+                        style: TraceText.screenTitle
+                            .copyWith(color: c.textPrimary),
+                      ).reveal(0, focus: true),
+                      const SizedBox(height: TraceSpace.xl),
+                      _categoryRow(context).reveal(1),
+                      const SizedBox(height: TraceSpace.xl),
+                      _labelled(
                         context,
-                        projectName ?? 'None',
-                        muted: projectName == null,
-                        onTap: () => _pickProject(context),
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: TraceSpace.xl),
-                  _labelled(
-                    context,
-                    'Duration',
-                    _tappableRow(
-                      context,
-                      _duration == null
-                          ? 'None'
-                          : formatDuration(_duration!, DurationFormat.human),
-                      muted: _duration == null,
-                      mono: _duration != null,
-                      onTap: _pickDuration,
-                    ),
+                        'Title',
+                        _TextRow(
+                          value: _title,
+                          hint: 'What was it?',
+                          onChanged: (v) => setState(() => _title = v),
+                        ),
+                      ).reveal(2),
+                      // Project belongs to BUILD alone. Switching category in
+                      // or out of it folds the field open or shut, so the form
+                      // below moves rather than jumps.
+                      AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 380),
+                        switchInCurve: TraceMotion.emphasized,
+                        switchOutCurve: TraceMotion.emphasized,
+                        transitionBuilder: (child, animation) => SizeTransition(
+                          sizeFactor: animation,
+                          alignment: AlignmentDirectional.topStart,
+                          child:
+                              FadeTransition(opacity: animation, child: child),
+                        ),
+                        child: _category != Category.build
+                            ? const SizedBox(key: ValueKey('no-project'))
+                            : Padding(
+                                key: const ValueKey('project'),
+                                padding:
+                                    const EdgeInsets.only(top: TraceSpace.xl),
+                                child: _labelled(
+                                  context,
+                                  'Project',
+                                  _tappableRow(
+                                    context,
+                                    projectName ?? 'None',
+                                    muted: projectName == null,
+                                    onTap: () => _pickProject(context),
+                                  ),
+                                ),
+                              ),
+                      ).reveal(3),
+                      const SizedBox(height: TraceSpace.xl),
+                      _labelled(
+                        context,
+                        'Duration',
+                        _tappableRow(
+                          context,
+                          _duration == null
+                              ? 'None'
+                              : formatDuration(
+                                  _duration!, DurationFormat.human),
+                          muted: _duration == null,
+                          mono: _duration != null,
+                          onTap: _pickDuration,
+                        ),
+                      ).reveal(4),
+                      const SizedBox(height: TraceSpace.xl),
+                      _labelled(context, 'Note (optional)', _noteBox(context))
+                          .reveal(5),
+                      // Proof is deliberately absent in Phase 1. Git and
+                      // screenshot capture need real integrations, and a row
+                      // that does nothing is worse than no row.
+                    ],
                   ),
-                  const SizedBox(height: TraceSpace.xl),
-                  _labelled(context, 'Note (optional)', _noteBox(context)),
-                  // Proof is deliberately absent in Phase 1. Git and screenshot
-                  // capture need real integrations, and a row that does nothing
-                  // is worse than no row.
-                ],
+                ),
               ),
             ),
           ],
@@ -181,11 +213,20 @@ class _AddEntryScreenState extends ConsumerState<AddEntryScreen> {
           ),
           PressScale(
             onTap: _title.trim().isEmpty ? null : _save,
-            child: Opacity(
+            // Brightens as the title fills in rather than switching on.
+            child: AnimatedOpacity(
               opacity: _title.trim().isEmpty ? 0.35 : 1,
-              child: Text(
-                _saving ? 'Saving…' : 'Save',
-                style: TraceText.button.copyWith(color: c.navy),
+              duration: TraceMotion.base,
+              child: AnimatedSwitcher(
+                duration: TraceMotion.base,
+                switchInCurve: TraceMotion.emphasizedDecelerate,
+                switchOutCurve: Curves.easeIn,
+                transitionBuilder: TraceButton.labelTransition,
+                child: Text(
+                  _saving ? 'Saving…' : 'Save',
+                  key: ValueKey(_saving),
+                  style: TraceText.button.copyWith(color: c.navy),
+                ),
               ),
             ),
           ),
@@ -304,9 +345,8 @@ class _AddEntryScreenState extends ConsumerState<AddEntryScreen> {
   // ── Pickers ─────────────────────────────────────────────────────────────
 
   Future<void> _pickCategory(BuildContext context) async {
-    final picked = await showModalBottomSheet<Category>(
+    final picked = await showTraceSheet<Category>(
       context: context,
-      backgroundColor: Colors.transparent,
       builder: (context) => _PickerSheet(
         title: 'Category',
         children: [
@@ -325,9 +365,8 @@ class _AddEntryScreenState extends ConsumerState<AddEntryScreen> {
 
   Future<void> _pickProject(BuildContext context) async {
     final projects = ref.read(projectsProvider).value ?? const [];
-    final picked = await showModalBottomSheet<String?>(
+    final picked = await showTraceSheet<String?>(
       context: context,
-      backgroundColor: Colors.transparent,
       builder: (context) => _PickerSheet(
         title: 'Project',
         children: [
@@ -359,10 +398,9 @@ class _AddEntryScreenState extends ConsumerState<AddEntryScreen> {
           : formatDuration(_duration!, DurationFormat.human),
     );
 
-    final result = await showModalBottomSheet<Duration?>(
+    final result = await showTraceSheet<Duration?>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.transparent,
       builder: (context) {
         final c = context.traceColors;
         return Padding(
@@ -380,8 +418,7 @@ class _AddEntryScreenState extends ConsumerState<AddEntryScreen> {
                   style: TraceText.body.copyWith(color: c.textPrimary),
                   decoration: InputDecoration(
                     hintText: 'e.g. 2h 34m',
-                    hintStyle:
-                        TraceText.body.copyWith(color: c.textSecondary),
+                    hintStyle: TraceText.body.copyWith(color: c.textSecondary),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(TraceRadius.input),
                       borderSide: BorderSide(color: c.border),
@@ -521,8 +558,7 @@ class _PickerRow extends StatelessWidget {
                 style: TraceText.body.copyWith(color: c.textPrimary),
               ),
             ),
-            if (selected)
-              Icon(Icons.check_rounded, size: 18, color: c.navy),
+            if (selected) Icon(Icons.check_rounded, size: 18, color: c.navy),
           ],
         ),
       ),

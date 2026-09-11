@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/theme/theme.dart';
+import '../../shared/widgets/press_scale.dart';
+import '../../shared/widgets/trace_sheet.dart';
 import '../../core/database/database.dart';
 import '../notes/note_providers.dart';
 import 'reading_providers.dart';
@@ -18,10 +20,8 @@ class LogReadingSheet extends ConsumerStatefulWidget {
   final Book book;
 
   static Future<void> show(BuildContext context, Book book) {
-    return showModalBottomSheet<void>(
+    return showTraceSheet<void>(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
       builder: (_) => LogReadingSheet(book: book),
     );
   }
@@ -92,8 +92,8 @@ class _LogReadingSheetState extends ConsumerState<LogReadingSheet> {
                     style: TraceText.bookTitle.copyWith(color: c.textPrimary)),
                 const SizedBox(height: TraceSpace.xl),
                 Text('Pages read',
-                    style: TraceText.rowSubtitle
-                        .copyWith(color: c.textSecondary)),
+                    style:
+                        TraceText.rowSubtitle.copyWith(color: c.textSecondary)),
                 const SizedBox(height: TraceSpace.sm),
                 _box(
                   context,
@@ -116,8 +116,8 @@ class _LogReadingSheetState extends ConsumerState<LogReadingSheet> {
                 ),
                 const SizedBox(height: TraceSpace.lg),
                 Text('Current thought (optional)',
-                    style: TraceText.rowSubtitle
-                        .copyWith(color: c.textSecondary)),
+                    style:
+                        TraceText.rowSubtitle.copyWith(color: c.textSecondary)),
                 const SizedBox(height: TraceSpace.sm),
                 _box(
                   context,
@@ -138,9 +138,8 @@ class _LogReadingSheetState extends ConsumerState<LogReadingSheet> {
                 const SizedBox(height: TraceSpace.xl),
                 Align(
                   alignment: Alignment.centerRight,
-                  child: GestureDetector(
+                  child: PressScale(
                     onTap: _save,
-                    behavior: HitTestBehavior.opaque,
                     child: Padding(
                       padding: const EdgeInsets.all(TraceSpace.sm),
                       child: Text(

@@ -1,6 +1,7 @@
+import 'dart:math' as math;
+
 import 'package:animations/animations.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
@@ -9,6 +10,7 @@ import '../../core/database/database.dart';
 import '../../core/parser/quantity_grammar.dart';
 import '../../shared/widgets/entry_row.dart';
 import '../../shared/widgets/press_scale.dart';
+import '../../shared/widgets/reveal.dart';
 import '../entries/entry_repository.dart';
 import 'timeline_providers.dart';
 
@@ -24,6 +26,7 @@ class TimelineScreen extends ConsumerWidget {
     final c = context.traceColors;
     final groups = ref.watch(monthTimelineProvider);
     final month = ref.watch(visibleMonthProvider);
+    final direction = ref.watch(monthDirectionProvider);
 
     return Scaffold(
       backgroundColor: c.bg,
@@ -50,14 +53,14 @@ class TimelineScreen extends ConsumerWidget {
               ),
             ),
             const SizedBox(height: TraceSpace.lg),
-            _monthStepper(context, ref, month),
+            _monthStepper(context, ref, month, direction),
             const SizedBox(height: TraceSpace.sm),
             Expanded(
               // Months slide along the horizontal axis in the direction of the
               // arrow pressed, so paging back feels like moving back.
               child: PageTransitionSwitcher(
-                duration: TraceMotion.base,
-                reverse: ref.watch(monthDirectionProvider) < 0,
+                duration: TraceMotion.page,
+                reverse: direction < 0,
                 transitionBuilder: (child, primary, secondary) =>
                     SharedAxisTransition(
                   animation: primary,
@@ -68,12 +71,17 @@ class TimelineScreen extends ConsumerWidget {
                 ),
                 child: KeyedSubtree(
                   key: ValueKey(DateFormat('yyyy-MM').format(month)),
-                  child: groups.when(
-                    data: (data) => data.isEmpty
-                        ? _empty(context, month)
-                        : _list(context, data),
-                    loading: () => const SizedBox.shrink(),
-                    error: (_, _) => _error(context),
+                  // A fresh scope per month: each month's days cascade in as
+                  // it arrives, and only then.
+                  child: RevealScope(
+                    delay: const Duration(milliseconds: 120),
+                    child: groups.when(
+                      data: (data) => data.isEmpty
+                          ? _empty(context, month)
+                          : _list(context, data),
+                      loading: () => const SizedBox.shrink(),
+                      error: (_, _) => _error(context),
+                    ),
                   ),
                 ),
               ),
@@ -84,11 +92,17 @@ class TimelineScreen extends ConsumerWidget {
     );
   }
 
-  Widget _monthStepper(BuildContext context, WidgetRef ref, DateTime month) {
+  Widget _monthStepper(
+    BuildContext context,
+    WidgetRef ref,
+    DateTime month,
+    int direction,
+  ) {
     final c = context.traceColors;
     final notifier = ref.read(visibleMonthProvider.notifier);
     // Paging forward past the current month would only ever show emptiness.
     final canGoNext = !ref.read(visibleMonthProvider.notifier).isCurrent;
+    final label = DateFormat('MMMM yyyy').format(month);
 
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: context.gutter),
@@ -103,19 +117,54 @@ class TimelineScreen extends ConsumerWidget {
             ),
           ),
           const SizedBox(width: TraceSpace.sm),
-          Text(
-            DateFormat('MMMM yyyy').format(month),
-            style: TraceText.categoryLabel.copyWith(color: c.textPrimary),
+          // The label rolls in from the side the month came from, and the
+          // right chevron glides to the new label's width rather than jumping.
+          AnimatedSize(
+            duration: TraceMotion.page,
+            curve: TraceMotion.emphasized,
+            alignment: Alignment.centerLeft,
+            child: AnimatedSwitcher(
+              duration: TraceMotion.page,
+              switchInCurve: TraceMotion.emphasizedDecelerate,
+              switchOutCurve: Curves.easeIn,
+              layoutBuilder: (current, previous) => Stack(
+                alignment: Alignment.centerLeft,
+                clipBehavior: Clip.none,
+                children: [...previous, ?current],
+              ),
+              transitionBuilder: (child, animation) {
+                final incoming = child.key == ValueKey(label);
+                // Arrivals come from the side paged towards; departures leave
+                // towards the other.
+                final side = (incoming ? direction : -direction).toDouble();
+                return FadeTransition(
+                  opacity: animation,
+                  child: SlideTransition(
+                    position: Tween(
+                      begin: Offset(0.35 * side, 0),
+                      end: Offset.zero,
+                    ).animate(animation),
+                    child: child,
+                  ),
+                );
+              },
+              child: Text(
+                label,
+                key: ValueKey(label),
+                style: TraceText.categoryLabel.copyWith(color: c.textPrimary),
+              ),
+            ),
           ),
           const SizedBox(width: TraceSpace.sm),
           PressScale(
             onTap: canGoNext ? notifier.next : null,
             child: Padding(
               padding: const EdgeInsets.all(TraceSpace.xs),
-              child: Icon(
-                Icons.chevron_right_rounded,
-                size: 20,
-                color: canGoNext ? c.textSecondary : c.border,
+              child: TweenAnimationBuilder<Color?>(
+                tween: ColorTween(end: canGoNext ? c.textSecondary : c.border),
+                duration: TraceMotion.base,
+                builder: (context, color, _) =>
+                    Icon(Icons.chevron_right_rounded, size: 20, color: color),
               ),
             ),
           ),
@@ -133,7 +182,9 @@ class TimelineScreen extends ConsumerWidget {
         TraceSpace.xxxl,
       ),
       itemCount: groups.length,
-      itemBuilder: (context, i) => _DayBlock(group: groups[i], index: i),
+      itemBuilder: (context, i) => _DayBlock(
+        group: groups[i],
+      ).reveal(i.clamp(0, 7), key: ValueKey(groups[i].date)),
     );
   }
 
@@ -143,7 +194,7 @@ class TimelineScreen extends ConsumerWidget {
       child: Text(
         'Nothing recorded in ${DateFormat('MMMM').format(month)}.',
         style: TraceText.body.copyWith(color: c.textSecondary),
-      ),
+      ).reveal(0),
     );
   }
 
@@ -158,43 +209,44 @@ class TimelineScreen extends ConsumerWidget {
 
 /// One day: a mono date gutter on the left, that day's entries on the right.
 class _DayBlock extends StatelessWidget {
-  const _DayBlock({required this.group, required this.index});
+  const _DayBlock({required this.group});
 
   final DayGroup group;
-  final int index;
+
+  static const _gutterWidth = 34.0;
 
   @override
   Widget build(BuildContext context) {
     final c = context.traceColors;
     final date = DateTime.parse(group.date);
 
+    final gutter = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          DateFormat('dd').format(date),
+          style: TraceText.monoLarge.copyWith(color: c.textPrimary),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          DateFormat('E').format(date),
+          style: TraceText.sectionLabel.copyWith(
+            color: c.textSecondary,
+            fontSize: 10,
+          ),
+        ),
+      ],
+    );
+
     return Padding(
       padding: const EdgeInsets.only(bottom: TraceSpace.xl),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      // The card sets the block's height; the gutter is laid over its left
+      // edge so it has the full height to travel in while pinned.
+      child: Stack(
         children: [
-          SizedBox(
-            width: 34,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  DateFormat('dd').format(date),
-                  style: TraceText.monoLarge.copyWith(color: c.textPrimary),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  DateFormat('E').format(date),
-                  style: TraceText.sectionLabel.copyWith(
-                    color: c.textSecondary,
-                    fontSize: 10,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: TraceSpace.md),
-          Expanded(
+          Padding(
+            padding: const EdgeInsets.only(left: _gutterWidth + TraceSpace.md),
             child: Container(
               decoration: BoxDecoration(
                 border: Border.all(color: c.border),
@@ -220,12 +272,16 @@ class _DayBlock extends StatelessWidget {
               ),
             ),
           ),
+          Positioned(
+            left: 0,
+            top: 0,
+            bottom: 0,
+            width: _gutterWidth,
+            child: _StickyGutter(child: gutter),
+          ),
         ],
       ),
-    ).animate().fadeIn(
-          delay: TraceMotion.rowStagger * (index.clamp(0, 6)),
-          duration: TraceMotion.base,
-        );
+    );
   }
 
   static String? _quantityLabel(Entry e) {
@@ -233,4 +289,77 @@ class _DayBlock extends StatelessWidget {
     if (e.durationSecs != null) return null;
     return QuantityGrammar.format(e.quantity!, e.quantityUnit!);
   }
+}
+
+/// A day's date that stays in view while you read that day.
+///
+/// As a long day scrolls up, its date pins to the top of the list and rides
+/// down its own block; when the block's end arrives it is pushed out, fading
+/// as it goes, and the next day's date takes over. You always know which day
+/// you are reading without the dates ever stacking up.
+///
+/// Done in paint rather than layout — a [Flow] repositions the gutter on every
+/// scroll tick without relaying out anything, so the list scrolls as cheaply
+/// as it did without it.
+class _StickyGutter extends StatelessWidget {
+  const _StickyGutter({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final scrollable = Scrollable.maybeOf(context);
+    if (scrollable == null) {
+      return Align(alignment: Alignment.topLeft, child: child);
+    }
+    return Flow(
+      delegate: _StickyGutterDelegate(scrollable: scrollable, block: context),
+      children: [child],
+    );
+  }
+}
+
+class _StickyGutterDelegate extends FlowDelegate {
+  _StickyGutterDelegate({required this.scrollable, required this.block})
+      : super(repaint: scrollable.position);
+
+  final ScrollableState scrollable;
+  final BuildContext block;
+
+  /// Where a pinned date sits, below the top edge of the list.
+  static const _inset = TraceSpace.sm;
+
+  /// Distance over which a date fades as its block's end pushes it out.
+  static const _fade = 24.0;
+
+  @override
+  BoxConstraints getConstraintsForChild(int i, BoxConstraints constraints) =>
+      constraints.loosen();
+
+  @override
+  void paintChildren(FlowPaintingContext context) {
+    final viewport = scrollable.context.findRenderObject();
+    final box = block.findRenderObject();
+    final child = context.getChildSize(0);
+    if (viewport is! RenderBox || box is! RenderBox || child == null) {
+      context.paintChild(0);
+      return;
+    }
+
+    final top = box.localToGlobal(Offset.zero, ancestor: viewport).dy;
+    final room = math.max(0.0, context.size.height - child.height);
+    final pinned = (_inset - top).clamp(0.0, room);
+    final span = math.min(_fade, room);
+    final opacity = span <= 0 ? 1.0 : ((room - pinned) / span).clamp(0.0, 1.0);
+
+    context.paintChild(
+      0,
+      transform: Matrix4.translationValues(0, pinned, 0),
+      opacity: opacity,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_StickyGutterDelegate old) =>
+      old.scrollable != scrollable || old.block != block;
 }

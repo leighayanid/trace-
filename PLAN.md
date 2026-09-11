@@ -552,9 +552,18 @@ be `RepaintBoundary`-wrapped so their animation does not repaint the scroll view
 > - **Phase 2: complete.** Timeline, Projects (+ creation), Reading (+ books and
 >   session logging), Insights with both custom-painted charts, More, About.
 > - **Phase 3: complete** except for on-device profiling, which needs hardware.
->   Catalogue items 1–10 and 12–17 are implemented. Item 11 (Timeline gutter
->   pinning) is **not** built: it needs a sliver rewrite of the day list for a
->   small gain, and was judged not worth the structural churn yet.
+>   All 17 catalogue items are implemented. Item 11 (Timeline gutter pinning)
+>   landed in the second motion pass without a sliver rewrite — the date is
+>   repositioned at paint time by a `Flow`, so nothing relays out on scroll.
+> - **Motion pass 2 (2026-09-11).** Depth page transition (rise + recede) on
+>   every platform; emphasized curves as the default for movement; shared
+>   `Reveal`/`RevealScope` cascade with blur-to-focus on key type, and
+>   expand-in for genuinely new rows; `HeroText` morphs project and book titles
+>   between list and detail; Quick Add's blur and the nav `+` driven by the
+>   sheet's own route controller, so both track a drag; sliding nav indicator
+>   and segmented thumb; splash exit choreography; bars and tickers hold their
+>   first run until visible (`EntranceTween`). Reduced-motion is honoured
+>   throughout. Still needs on-device profiling alongside Phase 3's.
 > - **Phase 4: code complete, UNVERIFIED against a live Neon project.** Schema +
 >   RLS migration, hand-rolled Neon Auth client, session controller with
 >   refresh-ahead and single-flight, Data API client, sync engine, and an opt-in

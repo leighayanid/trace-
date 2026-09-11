@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/theme/theme.dart';
+import '../../shared/widgets/press_scale.dart';
+import '../../shared/widgets/trace_sheet.dart';
 import '../entries/entry_providers.dart';
 import '../notes/note_providers.dart';
 
@@ -16,10 +18,8 @@ class OneLineSheet extends ConsumerStatefulWidget {
   final String? initial;
 
   static Future<void> show(BuildContext context, {String? initial}) {
-    return showModalBottomSheet<void>(
+    return showTraceSheet<void>(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
       builder: (_) => OneLineSheet(initial: initial),
     );
   }
@@ -66,7 +66,8 @@ class _OneLineSheetState extends ConsumerState<OneLineSheet> {
               children: [
                 Text(
                   'ONE LINE',
-                  style: TraceText.sectionLabel.copyWith(color: c.textSecondary),
+                  style:
+                      TraceText.sectionLabel.copyWith(color: c.textSecondary),
                 ),
                 const SizedBox(height: TraceSpace.lg),
                 TextField(
@@ -78,8 +79,7 @@ class _OneLineSheetState extends ConsumerState<OneLineSheet> {
                   style: TraceText.body.copyWith(color: c.textPrimary),
                   decoration: InputDecoration(
                     hintText: 'One line about today.',
-                    hintStyle:
-                        TraceText.body.copyWith(color: c.textSecondary),
+                    hintStyle: TraceText.body.copyWith(color: c.textSecondary),
                     border: InputBorder.none,
                   ),
                   onSubmitted: (_) => _save(),
@@ -87,9 +87,8 @@ class _OneLineSheetState extends ConsumerState<OneLineSheet> {
                 const SizedBox(height: TraceSpace.lg),
                 Align(
                   alignment: Alignment.centerRight,
-                  child: GestureDetector(
+                  child: PressScale(
                     onTap: _save,
-                    behavior: HitTestBehavior.opaque,
                     child: Padding(
                       padding: const EdgeInsets.all(TraceSpace.sm),
                       child: Text(

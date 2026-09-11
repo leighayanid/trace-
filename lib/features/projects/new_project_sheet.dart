@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/theme/theme.dart';
+import '../../shared/widgets/press_scale.dart';
+import '../../shared/widgets/trace_sheet.dart';
 import '../../core/parser/duration_grammar.dart';
 import 'project_providers.dart';
 
@@ -14,10 +16,8 @@ class NewProjectSheet extends ConsumerStatefulWidget {
   const NewProjectSheet({super.key});
 
   static Future<void> show(BuildContext context) {
-    return showModalBottomSheet<void>(
+    return showTraceSheet<void>(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
       builder: (_) => const NewProjectSheet(),
     );
   }
@@ -94,9 +94,8 @@ class _NewProjectSheetState extends ConsumerState<NewProjectSheet> {
                 const SizedBox(height: TraceSpace.xl),
                 Align(
                   alignment: Alignment.centerRight,
-                  child: GestureDetector(
+                  child: PressScale(
                     onTap: _save,
-                    behavior: HitTestBehavior.opaque,
                     child: Padding(
                       padding: const EdgeInsets.all(TraceSpace.sm),
                       child: Text(

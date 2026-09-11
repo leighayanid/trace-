@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/theme/theme.dart';
+import '../../shared/widgets/trace_sheet.dart';
 import '../../shared/widgets/trace_button.dart';
 import 'erase_controller.dart';
 
@@ -18,10 +19,8 @@ class EraseSheet extends ConsumerStatefulWidget {
   static const _word = 'DELETE';
 
   static Future<void> show(BuildContext context) {
-    return showModalBottomSheet<void>(
+    return showTraceSheet<void>(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
       builder: (_) => const EraseSheet(),
     );
   }
@@ -153,8 +152,7 @@ class _EraseSheetState extends ConsumerState<EraseSheet> {
                 TraceButton.text(
                   'Cancel',
                   fullWidth: true,
-                  onPressed:
-                      _busy ? null : () => Navigator.of(context).pop(),
+                  onPressed: _busy ? null : () => Navigator.of(context).pop(),
                 ),
               ],
             ),

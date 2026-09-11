@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/theme/theme.dart';
 import '../../core/database/database.dart';
+import '../../shared/widgets/hero_text.dart';
+import '../../shared/widgets/mono_duration.dart';
 import '../../shared/widgets/press_scale.dart';
 import '../../shared/widgets/progress_track.dart';
+import '../../shared/widgets/reveal.dart';
 import '../entries/entry_providers.dart';
 import 'book_detail_screen.dart';
 import 'book_repository.dart';
@@ -41,6 +43,7 @@ class ReadingScreen extends ConsumerWidget {
                           TraceText.screenTitle.copyWith(color: c.textPrimary)),
                   PressScale(
                     onTap: () => NewBookSheet.show(context),
+                    scale: 0.9,
                     child: Padding(
                       padding: const EdgeInsets.all(TraceSpace.xs),
                       child: Icon(Icons.add_rounded,
@@ -51,11 +54,14 @@ class ReadingScreen extends ConsumerWidget {
               ),
             ),
             Expanded(
-              child: books.when(
-                data: (list) =>
-                    list.isEmpty ? _empty(context) : _list(context, list),
-                loading: () => const SizedBox.shrink(),
-                error: (_, _) => _error(context),
+              child: RevealScope(
+                delay: const Duration(milliseconds: 140),
+                child: books.when(
+                  data: (list) =>
+                      list.isEmpty ? _empty(context) : _list(context, list),
+                  loading: () => const SizedBox.shrink(),
+                  error: (_, _) => _error(context),
+                ),
               ),
             ),
           ],
@@ -70,22 +76,39 @@ class ReadingScreen extends ConsumerWidget {
     final others =
         books.where((b) => b.status != BookStatus.reading.key).toList();
 
-    return ListView(
+    // Eager rather than lazy, as on Projects: a lazy list rebuilds rows as they
+    // scroll back in, which would replay a new book's arrival on old ones.
+    return SingleChildScrollView(
       padding: EdgeInsets.fromLTRB(
         context.gutter,
         TraceSpace.xl,
         context.gutter,
         TraceSpace.xxxl,
       ),
-      children: [
-        for (var i = 0; i < reading.length; i++)
-          _BookRow(book: reading[i], index: i),
-        if (others.isNotEmpty) ...[
-          const SizedBox(height: TraceSpace.section),
-          for (var i = 0; i < others.length; i++)
-            _BookRow(book: others[i], index: i, dimmed: true),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (var i = 0; i < reading.length; i++)
+            _BookRow(book: reading[i], index: i).reveal(
+              i.clamp(0, 7),
+              late: RevealLate.expand,
+              key: ValueKey(reading[i].id),
+            ),
+          if (others.isNotEmpty) ...[
+            const SizedBox(height: TraceSpace.section),
+            for (var i = 0; i < others.length; i++)
+              _BookRow(
+                book: others[i],
+                index: reading.length + i,
+                dimmed: true,
+              ).reveal(
+                (reading.length + i).clamp(0, 7),
+                late: RevealLate.expand,
+                key: ValueKey(others[i].id),
+              ),
+          ],
         ],
-      ],
+      ),
     );
   }
 
@@ -98,7 +121,7 @@ class ReadingScreen extends ConsumerWidget {
           'No books yet.',
           style: TraceText.body.copyWith(color: c.textSecondary),
         ),
-      ),
+      ).reveal(0),
     );
   }
 
@@ -129,37 +152,51 @@ class _BookRow extends StatelessWidget {
     final progress = total == null || total == 0
         ? null
         : (book.currentPage / total).clamp(0.0, 1.0);
+    // The bar fills once the row has landed.
+    final fill = Duration(milliseconds: 140 + 55 * index.clamp(0, 7) + 220);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: TraceSpace.xl),
       child: PressScale(
         onTap: () => Navigator.of(context).push(
           MaterialPageRoute<void>(
-            builder: (_) => BookDetailScreen(bookId: book.id),
+            builder: (_) => BookDetailScreen(bookId: book.id, initial: book),
           ),
         ),
-        child: Opacity(
+        // Animated, so a book moving between Reading and Finished settles into
+        // its new weight rather than snapping.
+        child: AnimatedOpacity(
           opacity: dimmed ? 0.55 : 1,
+          duration: TraceMotion.base,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(book.title,
-                  style: TraceText.bookTitle.copyWith(color: c.textPrimary)),
+              HeroText(
+                book.title,
+                tag: BookDetailScreen.titleTag(book.id),
+                style: TraceText.bookTitle.copyWith(color: c.textPrimary),
+              ),
               if (book.author != null && book.author!.isNotEmpty) ...[
                 const SizedBox(height: 2),
                 Text(book.author!,
-                    style: TraceText.rowSubtitle
-                        .copyWith(color: c.textSecondary)),
+                    style:
+                        TraceText.rowSubtitle.copyWith(color: c.textSecondary)),
               ],
               const SizedBox(height: TraceSpace.md),
               if (progress != null) ...[
                 Row(
                   children: [
-                    Expanded(child: ProgressTrack(value: progress)),
+                    Expanded(
+                      child: ProgressTrack(value: progress, delay: fill),
+                    ),
                     const SizedBox(width: TraceSpace.md),
-                    Text('${(progress * 100).round()}%',
-                        style: TraceText.monoSmall
-                            .copyWith(color: c.textPrimary)),
+                    MonoValue(
+                      (progress * 100).round(),
+                      suffix: '%',
+                      style: TraceText.monoSmall,
+                      color: c.textPrimary,
+                      delay: fill,
+                    ),
                   ],
                 ),
                 const SizedBox(height: TraceSpace.sm),
@@ -172,9 +209,6 @@ class _BookRow extends StatelessWidget {
           ),
         ),
       ),
-    ).animate().fadeIn(
-          delay: TraceMotion.rowStagger * index,
-          duration: TraceMotion.base,
-        );
+    );
   }
 }

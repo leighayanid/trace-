@@ -31,10 +31,25 @@ class CategoryGlyph extends StatelessWidget {
         color: c.navyLight,
         borderRadius: BorderRadius.circular(TraceRadius.glyph),
       ),
-      child: Icon(
-        category.icon,
-        size: size * 0.5,
-        color: c.navy,
+      // Changing category turns the glyph over in place: the old one shrinks
+      // and fades as the new one grows into the same tile.
+      child: AnimatedSwitcher(
+        duration: TraceMotion.base,
+        switchInCurve: TraceMotion.emphasizedDecelerate,
+        switchOutCurve: Curves.easeIn,
+        transitionBuilder: (child, animation) => FadeTransition(
+          opacity: animation,
+          child: ScaleTransition(
+            scale: Tween(begin: 0.6, end: 1.0).animate(animation),
+            child: child,
+          ),
+        ),
+        child: Icon(
+          category.icon,
+          key: ValueKey(category),
+          size: size * 0.5,
+          color: c.navy,
+        ),
       ),
     );
 

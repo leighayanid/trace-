@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../app/theme/theme.dart';
+import 'entrance_tween.dart';
 
 /// How a duration renders.
 enum DurationFormat {
@@ -36,6 +37,7 @@ class MonoDuration extends StatelessWidget {
     this.style,
     this.color,
     this.animate = true,
+    this.delay = Duration.zero,
   });
 
   final Duration duration;
@@ -47,21 +49,25 @@ class MonoDuration extends StatelessWidget {
   /// simultaneous tickers would be noise rather than texture.
   final bool animate;
 
+  /// Holds the first count until the value is on screen.
+  final Duration delay;
+
   @override
   Widget build(BuildContext context) {
     final c = context.traceColors;
     final resolved =
         (style ?? TraceText.mono).copyWith(color: color ?? c.textPrimary);
 
-    if (!animate) {
-      return Text(formatDuration(duration, format), style: resolved);
-    }
-
-    return TweenAnimationBuilder<Duration>(
-      tween: Tween(begin: Duration.zero, end: duration),
-      duration: TraceMotion.slow,
-      curve: TraceMotion.standard,
-      builder: (context, value, _) =>
+    return EntranceTween<Duration>(
+      begin: Duration.zero,
+      end: duration,
+      delay: delay,
+      duration: const Duration(milliseconds: 760),
+      // Counts fast through the early numbers and eases into the real one —
+      // the eye reads the last digits, so that is where the time goes.
+      curve: TraceMotion.emphasizedDecelerate,
+      animate: animate,
+      builder: (context, value) =>
           Text(formatDuration(value, format), style: resolved),
     );
   }
@@ -76,6 +82,7 @@ class MonoValue extends StatelessWidget {
     this.style,
     this.color,
     this.animate = true,
+    this.delay = Duration.zero,
   });
 
   final int value;
@@ -83,6 +90,7 @@ class MonoValue extends StatelessWidget {
   final TextStyle? style;
   final Color? color;
   final bool animate;
+  final Duration delay;
 
   @override
   Widget build(BuildContext context) {
@@ -90,14 +98,14 @@ class MonoValue extends StatelessWidget {
     final resolved =
         (style ?? TraceText.mono).copyWith(color: color ?? c.textPrimary);
 
-    if (!animate) return Text('$value$suffix', style: resolved);
-
-    return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0, end: value.toDouble()),
-      duration: TraceMotion.slow,
-      curve: TraceMotion.standard,
-      builder: (context, v, _) =>
-          Text('${v.round()}$suffix', style: resolved),
+    return EntranceTween<double>(
+      begin: 0,
+      end: value.toDouble(),
+      delay: delay,
+      duration: const Duration(milliseconds: 760),
+      curve: TraceMotion.emphasizedDecelerate,
+      animate: animate,
+      builder: (context, v) => Text('${v.round()}$suffix', style: resolved),
     );
   }
 }

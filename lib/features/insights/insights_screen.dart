@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../app/theme/theme.dart';
 import '../../shared/models/category.dart';
+import '../../shared/widgets/mono_duration.dart';
+import '../../shared/widgets/reveal.dart';
 import '../../shared/widgets/section_label.dart';
 import '../../shared/widgets/trace_segmented.dart';
 import 'insights_providers.dart';
@@ -27,32 +28,72 @@ class InsightsScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: c.bg,
       body: SafeArea(
-        child: ListView(
-          padding: EdgeInsets.fromLTRB(
-            context.gutter,
-            TraceSpace.lg,
-            context.gutter,
-            TraceSpace.xxxl,
-          ),
-          children: [
-            Text('Insights',
-                style: TraceText.screenTitle.copyWith(color: c.textPrimary)),
-            const SizedBox(height: TraceSpace.xl),
-            _segmented(context, ref, range),
-            const SizedBox(height: TraceSpace.section),
-            ...data.when(
-              data: (d) => _content(context, d, range),
-              loading: () => const [SizedBox.shrink()],
-              error: (_, _) => [
-                Text("Couldn't compute insights.",
-                    style: TraceText.body.copyWith(color: c.textSecondary)),
+        child: RevealScope(
+          delay: const Duration(milliseconds: 140),
+          child: SingleChildScrollView(
+            padding: EdgeInsets.fromLTRB(
+              context.gutter,
+              TraceSpace.lg,
+              context.gutter,
+              TraceSpace.xxxl,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text('Insights',
+                        style: TraceText.screenTitle
+                            .copyWith(color: c.textPrimary))
+                    .reveal(0),
+                const SizedBox(height: TraceSpace.xl),
+                _segmented(context, ref, range).reveal(1),
+                const SizedBox(height: TraceSpace.section),
+                // Keeps showing the old period while the new one computes, then
+                // cross-fades — rather than blanking to a loading state between.
+                data.when(
+                  skipLoadingOnReload: true,
+                  data: (d) => AnimatedSwitcher(
+                    duration: TraceMotion.page,
+                    switchInCurve: Curves.easeOut,
+                    switchOutCurve: Curves.easeIn,
+                    layoutBuilder: (current, previous) => Stack(
+                      alignment: Alignment.topCenter,
+                      children: [...previous, ?current],
+                    ),
+                    child: KeyedSubtree(
+                      key: ValueKey((range, d.from)),
+                      // A fresh scope per period, so switching month to year
+                      // redraws the charts and replays the cascade for the
+                      // new numbers.
+                      child: RevealScope(
+                        delay: _contentDelay,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: _content(context, d, range),
+                        ),
+                      ),
+                    ),
+                  ),
+                  loading: () => const SizedBox.shrink(),
+                  error: (_, _) => Text("Couldn't compute insights.",
+                      style: TraceText.body.copyWith(color: c.textSecondary)),
+                ),
               ],
             ),
-          ],
+          ),
         ),
       ),
     );
   }
+
+  /// The period's content follows the title and the range control in.
+  static const _contentDelay = Duration(milliseconds: 250);
+
+  /// When a chart in cascade slot [order] starts drawing: once its section
+  /// has faded in.
+  static Duration _drawAt(int order) =>
+      _contentDelay +
+      TraceMotion.cascade * order +
+      const Duration(milliseconds: 150);
 
   Widget _segmented(BuildContext context, WidgetRef ref, InsightsRange range) {
     return TraceSegmented<InsightsRange>(
@@ -77,7 +118,7 @@ class InsightsScreen extends ConsumerWidget {
             child: Text('Nothing recorded in this period.',
                 style: TraceText.body.copyWith(color: c.textSecondary)),
           ),
-        ),
+        ).reveal(0),
       ];
     }
 
@@ -90,24 +131,24 @@ class InsightsScreen extends ConsumerWidget {
               : DateFormat('yyyy').format(d.from),
           style: TraceText.rowSubtitle.copyWith(color: c.textSecondary),
         ),
-      ),
+      ).reveal(0),
       const SizedBox(height: TraceSpace.md),
+      // Each row's dots begin rippling once the row has landed, so the four
+      // months are written out one after another rather than all at once.
       for (var i = 0; i < Category.values.length; i++)
         ConsistencyRow(
           label: Category.values[i].title,
           days: d.presenceByCategory[Category.values[i]]!,
-        ).animate().fadeIn(
-              delay: TraceMotion.rowStagger * i,
-              duration: TraceMotion.base,
-            ),
+          delay: _drawAt(1 + i),
+        ).reveal(1 + i),
       const SizedBox(height: TraceSpace.section),
-      const SectionLabel('Time spent'),
+      const SectionLabel('Time spent').reveal(5),
       const SizedBox(height: TraceSpace.lg),
-      _timeSpent(context, d),
+      _timeSpent(context, d).reveal(6),
       const SizedBox(height: TraceSpace.section),
-      const SectionLabel('Quick stats'),
+      const SectionLabel('Quick stats').reveal(7),
       const SizedBox(height: TraceSpace.md),
-      _quickStats(context, d),
+      _quickStats(context, d).reveal(8),
     ];
   }
 
@@ -137,8 +178,10 @@ class InsightsScreen extends ConsumerWidget {
                 color: shades[cat]!,
               ),
           ],
-          centerTop: '${hours}h',
+          centerValue: hours,
+          centerSuffix: 'h',
           centerBottom: 'TOTAL',
+          delay: _drawAt(6),
         ),
         const SizedBox(width: TraceSpace.xl),
         Expanded(
@@ -164,9 +207,13 @@ class InsightsScreen extends ConsumerWidget {
                             style: TraceText.rowSubtitle
                                 .copyWith(color: c.textPrimary)),
                       ),
-                      Text('${(d.share(cat) * 100).round()}%',
-                          style: TraceText.monoSmall
-                              .copyWith(color: c.textSecondary)),
+                      MonoValue(
+                        (d.share(cat) * 100).round(),
+                        suffix: '%',
+                        style: TraceText.monoSmall,
+                        color: c.textSecondary,
+                        delay: _drawAt(6),
+                      ),
                     ],
                   ),
                 ),
@@ -180,7 +227,7 @@ class InsightsScreen extends ConsumerWidget {
   Widget _quickStats(BuildContext context, InsightsData d) {
     final c = context.traceColors;
 
-    Widget stat(IconData icon, String value, String label) => Expanded(
+    Widget stat(IconData icon, int value, String label) => Expanded(
           child: Row(
             children: [
               Icon(icon, size: 15, color: c.textSecondary),
@@ -189,8 +236,7 @@ class InsightsScreen extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(value,
-                      style: TraceText.mono.copyWith(color: c.textPrimary)),
+                  MonoValue(value, color: c.textPrimary, delay: _drawAt(8)),
                   Text(label,
                       style: TraceText.sectionLabel
                           .copyWith(color: c.textSecondary, fontSize: 9)),
@@ -202,9 +248,9 @@ class InsightsScreen extends ConsumerWidget {
 
     return Row(
       children: [
-        stat(Icons.grid_view_outlined, '${d.projectCount}', 'PROJECTS'),
-        stat(Icons.menu_book_outlined, '${d.bookCount}', 'BOOKS'),
-        stat(Icons.public_outlined, '${d.exploreTopics}', 'TOPICS'),
+        stat(Icons.grid_view_outlined, d.projectCount, 'PROJECTS'),
+        stat(Icons.menu_book_outlined, d.bookCount, 'BOOKS'),
+        stat(Icons.public_outlined, d.exploreTopics, 'TOPICS'),
       ],
     );
   }

@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 
 import 'colors.dart';
-import 'motion.dart';
+import 'page_transitions.dart';
 import 'spacing.dart';
 import 'typography.dart';
 
 export 'colors.dart';
 export 'motion.dart';
+export 'page_transitions.dart';
 export 'spacing.dart';
 export 'typography.dart';
 
@@ -89,10 +90,11 @@ abstract final class TraceTheme {
         selectionHandleColor: c.navy,
       ),
 
-      pageTransitionsTheme: const PageTransitionsTheme(
+      // Every platform, so desktop builds don't fall back to Material's zoom.
+      pageTransitionsTheme: PageTransitionsTheme(
         builders: {
-          TargetPlatform.android: _FadeThroughTransitionBuilder(),
-          TargetPlatform.iOS: _FadeThroughTransitionBuilder(),
+          for (final platform in TargetPlatform.values)
+            platform: const TracePageTransitionsBuilder(),
         },
       ),
     );
@@ -109,31 +111,6 @@ abstract final class TraceTheme {
       bodyMedium: TraceText.rowSubtitle.copyWith(color: secondary),
       labelSmall: TraceText.sectionLabel.copyWith(color: secondary),
       labelMedium: TraceText.categoryLabel.copyWith(color: primary),
-    );
-  }
-}
-
-/// Page transitions fade through rather than slide.
-///
-/// Sliding implies spatial hierarchy between screens; TRACE's screens are peers,
-/// and a slide would make the app feel busier than it is.
-class _FadeThroughTransitionBuilder extends PageTransitionsBuilder {
-  const _FadeThroughTransitionBuilder();
-
-  @override
-  Widget buildTransitions<T>(
-    PageRoute<T>? route,
-    BuildContext? context,
-    Animation<double> animation,
-    Animation<double> secondaryAnimation,
-    Widget child,
-  ) {
-    return FadeTransition(
-      opacity: CurvedAnimation(
-        parent: animation,
-        curve: const Interval(0.35, 1.0, curve: TraceMotion.standard),
-      ),
-      child: child,
     );
   }
 }

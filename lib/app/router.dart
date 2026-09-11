@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../features/projects/projects_screen.dart';
@@ -6,6 +7,7 @@ import '../features/splash/splash_screen.dart';
 import '../features/timeline/timeline_screen.dart';
 import '../features/today/today_screen.dart';
 import 'shell.dart';
+import 'theme/theme.dart';
 
 /// Route paths, referenced by name rather than by string literal at call sites.
 abstract final class Routes {
@@ -29,8 +31,12 @@ GoRouter createRouter() {
         ),
       ),
       StatefulShellRoute.indexedStack(
-        builder: (context, state, navigationShell) =>
-            TraceShell(navigationShell: navigationShell),
+        pageBuilder: (context, state, navigationShell) => CustomTransitionPage(
+          key: state.pageKey,
+          transitionDuration: TraceMotion.settle,
+          transitionsBuilder: _settle,
+          child: TraceShell(navigationShell: navigationShell),
+        ),
         branches: [
           StatefulShellBranch(
             routes: [
@@ -70,5 +76,40 @@ GoRouter createRouter() {
         ],
       ),
     ],
+  );
+}
+
+/// The app arriving from the splash: it settles into view from a slight
+/// magnification as it fades up out of the splash's dark field — the camera
+/// finishing its pull-back. Pages pushed on top later still make it recede,
+/// like any other page.
+Widget _settle(
+  BuildContext context,
+  Animation<double> animation,
+  Animation<double> secondaryAnimation,
+  Widget child,
+) {
+  // Reduced motion keeps the fade and drops the scale — by zeroing it rather
+  // than branching, so the shell isn't remounted if the setting changes.
+  final from = TraceMotion.reduced(context) ? 1.0 : 1.04;
+
+  // `drive` rather than CurvedAnimation: this runs on every rebuild of the
+  // route, and a driven tween holds no listener on the parent until used.
+  return FadeTransition(
+    opacity: animation.drive(
+      CurveTween(curve: const Interval(0, 0.6, curve: Curves.easeOut)),
+    ),
+    child: ScaleTransition(
+      scale: animation.drive(
+        Tween(
+          begin: from,
+          end: 1.0,
+        ).chain(CurveTween(curve: TraceMotion.emphasizedDecelerate)),
+      ),
+      child: TracePageTransitionsBuilder.recede(
+        secondaryAnimation,
+        child: child,
+      ),
+    ),
   );
 }

@@ -53,7 +53,11 @@ class TraceButton extends StatelessWidget {
 
     final (Color bg, Color fg, Color? border) = switch (variant) {
       TraceButtonVariant.filled => (c.navy, c.onNavy, null),
-      TraceButtonVariant.outlined => (Colors.transparent, c.textPrimary, c.border),
+      TraceButtonVariant.outlined => (
+          Colors.transparent,
+          c.textPrimary,
+          c.border
+        ),
       TraceButtonVariant.text => (Colors.transparent, c.textSecondary, null),
     };
 
@@ -65,18 +69,30 @@ class TraceButton extends StatelessWidget {
           Icon(icon, size: 17, color: fg),
           const SizedBox(width: TraceSpace.sm),
         ],
-        Text(label, style: TraceText.button.copyWith(color: fg)),
+        // A label change — `Save` to `Saving…` — cross-fades with a small
+        // vertical shift rather than cutting.
+        AnimatedSwitcher(
+          duration: TraceMotion.base,
+          switchInCurve: TraceMotion.emphasizedDecelerate,
+          switchOutCurve: Curves.easeIn,
+          transitionBuilder: labelTransition,
+          child: Text(
+            label,
+            key: ValueKey(label),
+            style: TraceText.button.copyWith(color: fg),
+          ),
+        ),
       ],
     );
 
-    return Opacity(
+    return AnimatedOpacity(
       opacity: enabled ? 1 : 0.4,
+      duration: TraceMotion.base,
+      curve: TraceMotion.standard,
       child: PressScale(
         onTap: onPressed,
         child: Container(
-          height: variant == TraceButtonVariant.text
-              ? null
-              : TraceSize.button,
+          height: variant == TraceButtonVariant.text ? null : TraceSize.button,
           padding: variant == TraceButtonVariant.text
               ? const EdgeInsets.symmetric(vertical: TraceSpace.sm)
               : const EdgeInsets.symmetric(horizontal: TraceSpace.lg),
@@ -88,6 +104,21 @@ class TraceButton extends StatelessWidget {
           ),
           child: content,
         ),
+      ),
+    );
+  }
+
+  /// Shared by every label that swaps in place: the new word rises into the
+  /// slot as the old one fades. Public so bare text actions can match buttons.
+  static Widget labelTransition(Widget child, Animation<double> animation) {
+    return FadeTransition(
+      opacity: animation,
+      child: SlideTransition(
+        position: Tween(
+          begin: const Offset(0, 0.35),
+          end: Offset.zero,
+        ).animate(animation),
+        child: child,
       ),
     );
   }
