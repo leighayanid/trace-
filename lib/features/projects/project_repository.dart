@@ -60,7 +60,7 @@ class ProjectRepository {
     Duration? target,
     bool clearTarget = false,
   }) {
-    return _db.upsertProject(
+    return _db.updateProject(
       ProjectsCompanion(
         id: Value(id),
         name: name == null ? const Value.absent() : Value(name.trim()),

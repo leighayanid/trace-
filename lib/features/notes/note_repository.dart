@@ -36,7 +36,7 @@ class NoteRepository {
       return;
     }
 
-    await _db.upsertNote(
+    await _db.updateNote(
       NotesCompanion(
         id: Value(existing.id),
         body: Value(trimmed),

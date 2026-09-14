@@ -80,8 +80,15 @@ class AppDatabase extends _$AppDatabase {
     });
   }
 
+  /// Writes a whole row. The companion must carry every required column —
+  /// drift validates an upsert as an insert, even when the row already exists.
   Future<void> upsertEntry(EntriesCompanion entry) =>
       into(entries).insertOnConflictUpdate(entry);
+
+  /// Writes only the fields present on [entry] to an existing row. Edits go
+  /// through here, not [upsertEntry], which rejects a partial companion.
+  Future<void> updateEntry(EntriesCompanion entry) =>
+      (update(entries)..where((t) => t.id.equals(entry.id.value))).write(entry);
 
   /// Tombstones an entry. Never issues a hard DELETE.
   Future<void> softDeleteEntry(String id) {
@@ -113,6 +120,10 @@ class AppDatabase extends _$AppDatabase {
   Future<void> upsertProject(ProjectsCompanion project) =>
       into(projects).insertOnConflictUpdate(project);
 
+  Future<void> updateProject(ProjectsCompanion project) =>
+      (update(projects)..where((t) => t.id.equals(project.id.value)))
+          .write(project);
+
   /// Total tracked time on a project, derived from its entries.
   ///
   /// Never stored on the project row — a duplicated total is a total that goes
@@ -142,6 +153,9 @@ class AppDatabase extends _$AppDatabase {
   Future<void> upsertBook(BooksCompanion book) =>
       into(books).insertOnConflictUpdate(book);
 
+  Future<void> updateBook(BooksCompanion book) =>
+      (update(books)..where((t) => t.id.equals(book.id.value))).write(book);
+
   // ── Notes ─────────────────────────────────────────────────────────────────
 
   /// The ONE LINE for a given day, if written.
@@ -157,6 +171,9 @@ class AppDatabase extends _$AppDatabase {
 
   Future<void> upsertNote(NotesCompanion note) =>
       into(notes).insertOnConflictUpdate(note);
+
+  Future<void> updateNote(NotesCompanion note) =>
+      (update(notes)..where((t) => t.id.equals(note.id.value))).write(note);
 
   Stream<List<Note>> watchNotesForBook(String bookId) {
     return (select(notes)

@@ -67,7 +67,7 @@ class BookRepository {
     final finished =
         book.totalPages != null && newPage >= book.totalPages!;
 
-    await _db.upsertBook(
+    await _db.updateBook(
       BooksCompanion(
         id: Value(book.id),
         currentPage: Value(newPage),
@@ -102,7 +102,7 @@ class BookRepository {
     int? totalPages,
     BookStatus? status,
   }) {
-    return _db.upsertBook(
+    return _db.updateBook(
       BooksCompanion(
         id: Value(id),
         title: title == null ? const Value.absent() : Value(title.trim()),

@@ -61,7 +61,7 @@ class EntryRepository {
     String? projectId,
     String? bookId,
   }) async {
-    await _db.upsertEntry(
+    await _db.updateEntry(
       EntriesCompanion(
         id: Value(id),
         category: category == null ? const Value.absent() : Value(category.name),
