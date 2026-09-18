@@ -51,54 +51,39 @@ class BookRepository {
     return id;
   }
 
-  /// Logs a reading session.
+  /// Logs a reading session: a READ entry of [pagesRead] pages.
   ///
-  /// One action writes two things — a READ entry and the book's new page —
-  /// because a reading session that does not move the bookmark is a session the
-  /// user has to record twice.
+  /// The bookmark is derived from these entries, so writing the session is
+  /// all it takes to move it — there is no second number to keep in step.
   Future<void> logSession({
     required Book book,
     required int pagesRead,
     String? thought,
   }) async {
     final now = DateTime.now().toUtc();
-    final newPage = (book.currentPage + pagesRead)
-        .clamp(0, book.totalPages ?? 1 << 30);
-    final finished =
-        book.totalPages != null && newPage >= book.totalPages!;
-
-    await _db.updateBook(
-      BooksCompanion(
-        id: Value(book.id),
-        currentPage: Value(newPage),
-        status: Value(finished ? BookStatus.finished.key : book.status),
-        finishedAt: finished ? Value(now) : const Value.absent(),
-        updatedAt: Value(now),
-        dirty: const Value(true),
-      ),
-    );
-
-    await _db.upsertEntry(
-      EntriesCompanion.insert(
-        id: _uuid.v7(),
-        category: Category.read.name,
-        title: book.title,
-        date: dayKey(DateTime.now()),
-        quantity: Value(pagesRead.toDouble()),
-        quantityUnit: const Value('pages'),
-        bookId: Value(book.id),
-        description: Value(thought?.trim().isEmpty ?? true ? null : thought),
-        createdAt: now,
-        updatedAt: now,
-      ),
-    );
+    await _db.transaction(() async {
+      await _db.upsertEntry(
+        EntriesCompanion.insert(
+          id: _uuid.v7(),
+          category: Category.read.name,
+          title: book.title,
+          date: dayKey(DateTime.now()),
+          quantity: Value(pagesRead.toDouble()),
+          quantityUnit: const Value('pages'),
+          bookId: Value(book.id),
+          description: Value(thought?.trim().isEmpty ?? true ? null : thought),
+          createdAt: now,
+          updatedAt: now,
+        ),
+      );
+      await _db.settleBookStatus(book.id);
+    });
   }
 
   Future<void> update({
     required String id,
     String? title,
     String? author,
-    int? currentPage,
     int? totalPages,
     BookStatus? status,
   }) {
@@ -107,8 +92,6 @@ class BookRepository {
         id: Value(id),
         title: title == null ? const Value.absent() : Value(title.trim()),
         author: author == null ? const Value.absent() : Value(author.trim()),
-        currentPage:
-            currentPage == null ? const Value.absent() : Value(currentPage),
         totalPages:
             totalPages == null ? const Value.absent() : Value(totalPages),
         status: status == null ? const Value.absent() : Value(status.key),
@@ -117,4 +100,18 @@ class BookRepository {
       ),
     );
   }
+}
+
+/// Where a book stands, from the pages logged against it.
+///
+/// [pagesRead] comes from [AppDatabase.watchPagesRead]. Rereading past the end
+/// is allowed in the log but not on the bookmark, which stops at the last page.
+extension BookProgress on Book {
+  int currentPage(int pagesRead) =>
+      totalPages == null ? pagesRead : pagesRead.clamp(0, totalPages!);
+
+  /// 0–1, or null when there is no page count to measure against.
+  double? progress(int pagesRead) => totalPages == null || totalPages == 0
+      ? null
+      : currentPage(pagesRead) / totalPages!;
 }

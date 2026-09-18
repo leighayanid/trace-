@@ -56,7 +56,6 @@ void main() {
       Book(
         id: id,
         title: title,
-        currentPage: 214,
         status: 'reading',
         createdAt: t0,
         updatedAt: t0,

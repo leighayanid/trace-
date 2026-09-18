@@ -86,36 +86,21 @@ void main() {
   });
 
   group('Conflict.advanceCursor', () {
-    test('takes the newest timestamp received', () {
-      expect(
-        Conflict.advanceCursor(
-          current: earlier,
-          received: [t0, later, earlier],
-        ),
-        later,
-      );
+    test('takes the highest server_seq received', () {
+      expect(Conflict.advanceCursor(current: 3, received: [5, 9, 4]), 9);
     });
 
     test('an empty page does not rewind the cursor', () {
       // A rewind would re-download the whole history on every idle sync.
-      expect(
-        Conflict.advanceCursor(current: t0, received: const []),
-        t0,
-      );
+      expect(Conflict.advanceCursor(current: 5, received: const []), 5);
     });
 
     test('never moves backwards', () {
-      expect(
-        Conflict.advanceCursor(current: later, received: [earlier, t0]),
-        later,
-      );
+      expect(Conflict.advanceCursor(current: 9, received: [4, 5]), 9);
     });
 
     test('starts from nothing on a first sync', () {
-      expect(
-        Conflict.advanceCursor(current: null, received: [earlier, t0]),
-        t0,
-      );
+      expect(Conflict.advanceCursor(current: null, received: [4, 5]), 5);
     });
   });
 }

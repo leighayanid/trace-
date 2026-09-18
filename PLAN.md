@@ -641,6 +641,33 @@ be `RepaintBoundary`-wrapped so their animation does not repaint the scroll view
 > simultaneous offline edits of one row, and a cold-start pull of a large
 > history.
 >
+> **Sync ordering fixed 2026-09-18 (migration 002).** The pull cursor was the
+> client-written `updated_at`, shared across tables. That lost rows four ways: a
+> newer row in one table skipped older rows in the next; a device syncing late
+> landed rows behind other devices' cursors; rows sharing one timestamp (every
+> delete-all) fell between pages; and the blind upsert let a stale push
+> overwrite a newer row. Now Postgres stamps every write with `server_seq` from
+> one sequence, each table has its own local cursor (`sync_cursors`, schema v2),
+> and a trigger refuses an older `updated_at`, re-stamping the stored row so the
+> stale device pulls the winner. The SQL was checked on Postgres 17 (PGlite);
+> the engine against a fake server that follows the same rules
+> (`test/sync_engine_test.dart`). Still unverified against Neon itself.
+>
+>
+> **Data fixes 2026-09-18 (local schema v3, migration 003).**
+> - Entry edits go through `EntryDraft` and write every field, so a duration,
+>   project, book, amount or note can be cleared. The form now opens with the
+>   stored note, and edits Book (READ) and Amount. Dismissing a picker no longer
+>   unlinks the project, and a link the category hides is not saved.
+> - The bookmark is derived: `pagesRead` sums a book's live page sessions.
+>   `books.current_page` is gone on both sides, so Quick Add moves it, a
+>   deleted session moves it back, and offline sessions on two devices both
+>   count. Reaching the last page finishes the book however it was logged.
+> - Today follows the clock: `currentDayProvider` moves at midnight and on
+>   resume, and Insights recomputes with it.
+> - The unused 500-entry `watchTimeline` is removed. The Timeline was never
+>   capped — it pages by month.
+>
 > Known gap: `Conflict.clampToServer` is tested but **unwired**. It needs a real
 > server clock, and PostgREST does not surface the response `Date` header through
 > the Dart package. Until then a device with a badly wrong clock can win every
@@ -668,8 +695,6 @@ be `RepaintBoundary`-wrapped so their animation does not repaint the scroll view
 > - Four sheets (`NewProjectSheet`, `NewBookSheet`, `OneLineSheet`, `LogReadingSheet`) now
 >   duplicate the same container and field styling. Four is where extraction into a shared
 >   `SheetScaffold` + `TraceField` earns its keep.
-> - `TodayScreen._edit` fabricates a `ParsedEntry` from a stored row to reuse the form. It works,
->   but a proper draft type would be honest.
 
 **Phase 0 — Foundation.** Install Flutter 3.47.2, `flutter create`, `git init`, bundle fonts, build
 the full theme (`colors/typography/spacing/motion`), GoRouter `StatefulShellRoute` with the five

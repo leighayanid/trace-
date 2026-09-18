@@ -21,7 +21,7 @@ class DayGroup {
 }
 
 @DriftDatabase(
-  tables: [Entries, Projects, Books, Notes, Proofs, SyncStates],
+  tables: [Entries, Projects, Books, Notes, Proofs, SyncStates, SyncCursors],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_open());
@@ -29,10 +29,24 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
+        onUpgrade: (m, from, to) async {
+          if (from < 2) {
+            // The pull cursor moved from one client timestamp to a server
+            // sequence per table. The old cursor cannot be translated, so it is
+            // dropped and the next sync pulls everything once — which also
+            // recovers any rows the old cursor had skipped.
+            await m.alterTable(TableMigration(syncStates));
+            await m.createTable(syncCursors);
+          }
+          if (from < 3) {
+            // Books stopped storing current_page; it is derived from sessions.
+            await m.alterTable(TableMigration(books));
+          }
+        },
         beforeOpen: (details) async {
           // Required for the ON DELETE behaviour of related rows.
           await customStatement('PRAGMA foreign_keys = ON');
@@ -53,31 +67,6 @@ class AppDatabase extends _$AppDatabase {
           ..where((t) => t.date.equals(date) & t.deletedAt.isNull())
           ..orderBy([(t) => OrderingTerm.desc(t.createdAt)]))
         .watch();
-  }
-
-  Stream<List<Entry>> watchRecentEntries({int limit = 200}) {
-    return (select(entries)
-          ..where((t) => t.deletedAt.isNull())
-          ..orderBy([
-            (t) => OrderingTerm.desc(t.date),
-            (t) => OrderingTerm.desc(t.createdAt),
-          ])
-          ..limit(limit))
-        .watch();
-  }
-
-  /// Entries grouped by day, for the Timeline.
-  Stream<List<DayGroup>> watchTimeline({int limit = 500}) {
-    return watchRecentEntries(limit: limit).map((rows) {
-      final byDate = <String, List<Entry>>{};
-      for (final e in rows) {
-        byDate.putIfAbsent(e.date, () => []).add(e);
-      }
-      final keys = byDate.keys.toList()..sort((a, b) => b.compareTo(a));
-      return [
-        for (final k in keys) DayGroup(date: k, entries: byDate[k]!),
-      ];
-    });
   }
 
   /// Writes a whole row. The companion must carry every required column —
@@ -155,6 +144,53 @@ class AppDatabase extends _$AppDatabase {
 
   Future<void> updateBook(BooksCompanion book) =>
       (update(books)..where((t) => t.id.equals(book.id.value))).write(book);
+
+  static const _pagesReadSql = 'SELECT book_id, CAST(TOTAL(quantity) AS INTEGER)'
+      ' AS pages FROM entries WHERE deleted_at IS NULL AND book_id IS NOT NULL'
+      " AND quantity_unit = 'pages'";
+
+  /// Pages logged per book, from its live sessions. The bookmark is derived
+  /// from this rather than stored, so it cannot disagree with the sessions.
+  Stream<Map<String, int>> watchPagesRead() {
+    return customSelect(
+      '$_pagesReadSql GROUP BY book_id',
+      readsFrom: {entries},
+    ).watch().map((rows) => {
+          for (final r in rows) r.read<String>('book_id'): r.read<int>('pages'),
+        });
+  }
+
+  Future<int> pagesRead(String bookId) async {
+    final row = await customSelect(
+      '$_pagesReadSql AND book_id = ?',
+      variables: [Variable.withString(bookId)],
+      readsFrom: {entries},
+    ).getSingleOrNull();
+    return row?.readNullable<int>('pages') ?? 0;
+  }
+
+  /// Marks a book finished once its sessions reach the last page.
+  ///
+  /// Called after any write that can add pages, so a book finishes the same
+  /// way whether it was logged from Reading or typed into Quick Add. Only ever
+  /// moves forward: deleting a session does not un-finish a book, because
+  /// the status is the user's to change, not the arithmetic's.
+  Future<void> settleBookStatus(String bookId) async {
+    final book = await (select(books)..where((t) => t.id.equals(bookId)))
+        .getSingleOrNull();
+    if (book == null || book.totalPages == null) return;
+    if (book.status == 'finished' || book.status == 'abandoned') return;
+    if (await pagesRead(bookId) < book.totalPages!) return;
+
+    final now = DateTime.now().toUtc();
+    await updateBook(BooksCompanion(
+      id: Value(bookId),
+      status: const Value('finished'),
+      finishedAt: Value(now),
+      updatedAt: Value(now),
+      dirty: const Value(true),
+    ));
+  }
 
   // ── Notes ─────────────────────────────────────────────────────────────────
 
@@ -293,6 +329,7 @@ class AppDatabase extends _$AppDatabase {
       await delete(books).go();
       await delete(projects).go();
       await delete(syncStates).go();
+      await delete(syncCursors).go();
     });
   }
 
@@ -402,7 +439,6 @@ class AppDatabase extends _$AppDatabase {
   /// [error] is passed explicitly as null to clear a previous failure, which is
   /// why it uses [clearError] rather than treating null as "leave alone".
   Future<void> updateSyncState({
-    DateTime? cursor,
     DateTime? lastPushAt,
     String? error,
     bool clearError = false,
@@ -410,8 +446,6 @@ class AppDatabase extends _$AppDatabase {
     return into(syncStates).insertOnConflictUpdate(
       SyncStatesCompanion(
         id: const Value(1),
-        lastPullCursor:
-            cursor == null ? const Value.absent() : Value(cursor),
         lastPushAt:
             lastPushAt == null ? const Value.absent() : Value(lastPushAt),
         lastError: (error == null && !clearError)
@@ -420,4 +454,17 @@ class AppDatabase extends _$AppDatabase {
       ),
     );
   }
+
+  /// The highest `server_seq` pulled from [table], or null before the first
+  /// pull.
+  Future<int?> pullCursor(String table) async {
+    final row = await (select(syncCursors)..where((t) => t.name.equals(table)))
+        .getSingleOrNull();
+    return row?.seq;
+  }
+
+  Future<void> setPullCursor(String table, int seq) =>
+      into(syncCursors).insertOnConflictUpdate(
+        SyncCursorsCompanion.insert(name: table, seq: seq),
+      );
 }

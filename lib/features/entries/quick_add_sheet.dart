@@ -12,6 +12,7 @@ import '../../shared/widgets/press_scale.dart';
 import '../../shared/widgets/reveal.dart';
 import '../../shared/widgets/save_sweep.dart';
 import '../../shared/widgets/trace_button.dart';
+import 'entry_draft.dart';
 import 'entry_providers.dart';
 
 /// The fastest path from a thought to a saved entry.
@@ -86,7 +87,7 @@ class _QuickAddSheetState extends ConsumerState<QuickAddSheet> {
     // The sweep is the acknowledgement: let it finish crossing before the
     // sheet leaves, however quickly the write returns.
     await Future.wait([
-      ref.read(entryRepositoryProvider).createFromParsed(parsed),
+      ref.read(entryRepositoryProvider).create(EntryDraft.fromParsed(parsed)),
       Future<void>.delayed(TraceMotion.base),
     ]);
     if (!mounted) return;

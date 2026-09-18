@@ -62,7 +62,7 @@ class SyncEngine {
       await _pullAll();
 
       final now = DateTime.now().toUtc();
-      await _db.updateSyncState(lastPushAt: now, error: null);
+      await _db.updateSyncState(lastPushAt: now, clearError: true);
       return SyncIdle(now);
     } catch (e) {
       // Failure is quiet by design: it lands in sync_state and surfaces as one
@@ -128,73 +128,68 @@ class SyncEngine {
   // ── Pull ──────────────────────────────────────────────────────────────────
 
   Future<void> _pullAll() async {
-    final state = await _db.syncState();
-    var cursor = state?.lastPullCursor;
-
-    // One cursor across all tables. Simple, and safe because it only ever moves
-    // to a timestamp every table has been read up to.
-    cursor = await _pull(
+    await _pull(
       table: 'projects',
-      cursor: cursor,
       apply: (json) => _db.upsertProject(RowMappers.projectFromJson(json)),
       localOf: (id) => _db.projectSyncRow(id),
     );
-    cursor = await _pull(
+    await _pull(
       table: 'books',
-      cursor: cursor,
       apply: (json) => _db.upsertBook(RowMappers.bookFromJson(json)),
       localOf: (id) => _db.bookSyncRow(id),
     );
-    cursor = await _pull(
+    await _pull(
       table: 'entries',
-      cursor: cursor,
       apply: (json) => _db.upsertEntry(RowMappers.entryFromJson(json)),
       localOf: (id) => _db.entrySyncRow(id),
     );
-    cursor = await _pull(
+    await _pull(
       table: 'notes',
-      cursor: cursor,
       apply: (json) => _db.upsertNote(RowMappers.noteFromJson(json)),
       localOf: (id) => _db.noteSyncRow(id),
     );
-
-    if (cursor != null) {
-      await _db.updateSyncState(cursor: cursor);
-    }
   }
 
-  Future<DateTime?> _pull({
+  /// Pulls one table from its own cursor.
+  ///
+  /// Each page is applied and its cursor saved in one transaction, so a pull
+  /// interrupted between pages resumes where it stopped and never records a
+  /// position it had not actually applied.
+  Future<void> _pull({
     required String table,
-    required DateTime? cursor,
     required Future<void> Function(Map<String, dynamic>) apply,
     required Future<SyncRow?> Function(String id) localOf,
   }) async {
-    var current = cursor;
+    var cursor = await _db.pullCursor(table);
 
     while (true) {
-      final page = await _api.pull(table: table, cursor: current);
+      final page = await _api.pull(table: table, afterSeq: cursor);
       if (page.isEmpty) break;
 
-      final seen = <DateTime>[];
-      for (final json in page) {
-        final remoteUpdated =
-            DateTime.parse(json['updated_at'] as String).toUtc();
-        seen.add(remoteUpdated);
+      final next = Conflict.advanceCursor(
+        current: cursor,
+        received: [
+          for (final json in page) (json['server_seq'] as num).toInt(),
+        ],
+      )!;
 
-        final local = await localOf(json['id'] as String);
-        final decision = Conflict.resolve(
-          local: local,
-          remoteUpdatedAt: remoteUpdated,
-        );
-        // keepLocal leaves the row dirty, so the next push sends it.
-        if (decision == Resolution.takeRemote) await apply(json);
-      }
+      await _db.transaction(() async {
+        for (final json in page) {
+          final local = await localOf(json['id'] as String);
+          final decision = Conflict.resolve(
+            local: local,
+            remoteUpdatedAt:
+                DateTime.parse(json['updated_at'] as String).toUtc(),
+          );
+          // keepLocal leaves the row dirty, so the next push sends it.
+          if (decision == Resolution.takeRemote) await apply(json);
+        }
+        await _db.setPullCursor(table, next);
+      });
 
-      current = Conflict.advanceCursor(current: current, received: seen);
+      cursor = next;
       if (page.length < DataApiClient.pageSize) break;
     }
-
-    return current;
   }
 
   /// Only a 401 from the token exchange means the session itself is dead. A

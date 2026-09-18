@@ -47,7 +47,8 @@ void main() {
       updatedAt: t0,
       dirty: const Value(false),
     ));
-    await db.updateSyncState(cursor: t0, lastPushAt: t0);
+    await db.updateSyncState(lastPushAt: t0);
+    await db.setPullCursor('entries', 42);
   }
 
   group('allEntries', () {
@@ -125,6 +126,7 @@ void main() {
       await db.eraseEverything();
 
       expect(await db.syncState(), isNull);
+      expect(await db.pullCursor('entries'), isNull);
     });
 
     test('erases tombstones too, not only live rows', () async {

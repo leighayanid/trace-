@@ -31,7 +31,16 @@ One-time setup, in order:
 
 1. In the Neon Console, open **Data API** and enable it with **Managed Better
    Auth**. This also creates the `authenticated` role the schema grants to.
-2. Run `db/migrations/001_schema.sql` in the SQL Editor.
+2. Run each file in `db/migrations/` in order (`001_…`, `002_…`, …) in the
+   SQL Editor, then refresh the Data API schema cache — Console → Data API →
+   **Refresh schema cache**, or `neon data-api refresh-schema --database neondb`.
+   The Data API does not see new columns until you do.
+
+   Upgrading an existing project, in this order:
+   1. Run `002`. Older builds keep working against it; newer builds need it.
+   2. Install the new build on every device.
+   3. Run `003`. It drops `books.current_page`, which older builds still send,
+      so it waits until none are left. Newer builds work with or without it.
 3. Create the one account: `bash tool/neon_check.sh`, answering `y`. The same
    script, answering `n`, re-checks sign-in, the token exchange and RLS at any
    time. It never prints a token.

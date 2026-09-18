@@ -3,8 +3,8 @@ import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../core/database/database.dart';
-import '../../core/parser/entry_parser.dart';
 import '../../shared/models/category.dart';
+import 'entry_draft.dart';
 
 /// ISO day key, `yyyy-MM-dd`. The unit the whole app groups by.
 String dayKey(DateTime d) => DateFormat('yyyy-MM-dd').format(d);
@@ -20,65 +20,71 @@ class EntryRepository {
 
   Stream<List<Entry>> watchForDate(String date) => _db.watchEntriesForDate(date);
 
-  Stream<List<DayGroup>> watchTimeline() => _db.watchTimeline();
-
   Future<Entry?> find(String id) => _db.findEntry(id);
 
-  /// Persists a parsed entry. Returns the new id.
-  Future<String> createFromParsed(ParsedEntry parsed, {DateTime? on}) async {
+  /// Persists a new entry. Returns its id.
+  Future<String> create(EntryDraft draft, {DateTime? on}) async {
     final now = DateTime.now().toUtc();
     final id = _uuid.v7();
 
     await _db.upsertEntry(
       EntriesCompanion.insert(
         id: id,
-        category: parsed.category.name,
-        title: parsed.title.isEmpty ? parsed.raw : parsed.title,
+        category: draft.category.name,
+        title: draft.title,
         date: dayKey(on ?? DateTime.now()),
         createdAt: now,
         updatedAt: now,
-        description: const Value.absent(),
-        durationSecs: Value(parsed.duration?.inSeconds),
-        quantity: Value(parsed.quantity),
-        quantityUnit: Value(parsed.quantityUnit),
-        projectId: Value(parsed.projectId),
-        bookId: Value(parsed.bookId),
+        description: Value(_text(draft.description)),
+        durationSecs: Value(draft.duration?.inSeconds),
+        quantity: Value(draft.quantity),
+        quantityUnit: Value(draft.quantity == null ? null : draft.quantityUnit),
+        projectId: Value(_projectOf(draft)),
+        bookId: Value(_bookOf(draft)),
       ),
     );
+    await _settle(_bookOf(draft));
     return id;
   }
 
-  /// Edits an existing entry. Always bumps `updatedAt` and re-marks it dirty —
-  /// those two are what make the row win a last-write-wins reconciliation.
-  Future<void> update({
-    required String id,
-    Category? category,
-    String? title,
-    String? description,
-    Duration? duration,
-    double? quantity,
-    String? quantityUnit,
-    String? projectId,
-    String? bookId,
-  }) async {
+  /// Writes every editable field of [draft] over the entry — including nulls,
+  /// so a cleared field is cleared. Always bumps `updatedAt` and re-marks the
+  /// row dirty; those two are what make it win a last-write-wins
+  /// reconciliation.
+  Future<void> save(String id, EntryDraft draft) async {
     await _db.updateEntry(
       EntriesCompanion(
         id: Value(id),
-        category: category == null ? const Value.absent() : Value(category.name),
-        title: title == null ? const Value.absent() : Value(title),
-        description:
-            description == null ? const Value.absent() : Value(description),
-        durationSecs:
-            duration == null ? const Value.absent() : Value(duration.inSeconds),
-        quantity: quantity == null ? const Value.absent() : Value(quantity),
-        quantityUnit:
-            quantityUnit == null ? const Value.absent() : Value(quantityUnit),
-        projectId: projectId == null ? const Value.absent() : Value(projectId),
-        bookId: bookId == null ? const Value.absent() : Value(bookId),
+        category: Value(draft.category.name),
+        title: Value(draft.title),
+        description: Value(_text(draft.description)),
+        durationSecs: Value(draft.duration?.inSeconds),
+        quantity: Value(draft.quantity),
+        quantityUnit: Value(draft.quantity == null ? null : draft.quantityUnit),
+        projectId: Value(_projectOf(draft)),
+        bookId: Value(_bookOf(draft)),
         updatedAt: Value(DateTime.now().toUtc()),
         dirty: const Value(true),
       ),
     );
+    await _settle(_bookOf(draft));
+  }
+
+  // A project belongs to BUILD and a book to READ. The form hides the field
+  // for other categories, so a link left over from before a category change
+  // must not be saved invisibly.
+  static String? _projectOf(EntryDraft d) =>
+      d.category == Category.build ? d.projectId : null;
+  static String? _bookOf(EntryDraft d) =>
+      d.category == Category.read ? d.bookId : null;
+
+  static String? _text(String? s) {
+    final t = s?.trim();
+    return t == null || t.isEmpty ? null : t;
+  }
+
+  Future<void> _settle(String? bookId) async {
+    if (bookId != null) await _db.settleBookStatus(bookId);
   }
 
   /// Tombstone, not a hard delete.

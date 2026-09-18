@@ -19,3 +19,8 @@ final bookSessionsProvider =
     StreamProvider.family<List<Entry>, String>((ref, id) {
   return ref.watch(bookRepositoryProvider).watchSessions(id);
 });
+
+/// Pages logged per book id. Every bookmark on screen is read from this.
+final pagesReadProvider = StreamProvider<Map<String, int>>(
+  (ref) => ref.watch(databaseProvider).watchPagesRead(),
+);

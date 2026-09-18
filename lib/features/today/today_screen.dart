@@ -4,7 +4,6 @@ import 'package:intl/intl.dart';
 
 import '../../app/theme/theme.dart';
 import '../../core/database/database.dart';
-import '../../core/parser/entry_parser.dart';
 import '../../core/parser/quantity_grammar.dart';
 import '../../shared/widgets/entry_row.dart';
 import '../../shared/widgets/mono_duration.dart';
@@ -14,6 +13,7 @@ import '../../shared/widgets/reveal.dart';
 import '../../shared/widgets/section_label.dart';
 import '../../shared/widgets/trace_button.dart';
 import '../entries/add_entry_screen.dart';
+import '../entries/entry_draft.dart';
 import '../entries/entry_providers.dart';
 import '../entries/entry_repository.dart';
 import 'one_line_sheet.dart';
@@ -201,17 +201,7 @@ class TodayScreen extends ConsumerWidget {
       MaterialPageRoute<void>(
         builder: (_) => AddEntryScreen(
           entryId: entry.id,
-          parsed: ParsedEntry(
-            raw: entry.title,
-            category: entry.categoryEnum,
-            title: entry.title,
-            duration: entry.durationOrNull,
-            quantity: entry.quantity,
-            quantityUnit: entry.quantityUnit,
-            projectId: entry.projectId,
-            bookId: entry.bookId,
-            matchedCategory: true,
-          ),
+          draft: EntryDraft.fromEntry(entry),
         ),
       ),
     );

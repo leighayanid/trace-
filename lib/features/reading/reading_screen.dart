@@ -12,6 +12,7 @@ import '../entries/entry_providers.dart';
 import 'book_detail_screen.dart';
 import 'book_repository.dart';
 import 'new_book_sheet.dart';
+import 'reading_providers.dart';
 
 /// Reading deserves its own surface — editorial, not a task list.
 class ReadingScreen extends ConsumerWidget {
@@ -134,7 +135,7 @@ class ReadingScreen extends ConsumerWidget {
   }
 }
 
-class _BookRow extends StatelessWidget {
+class _BookRow extends ConsumerWidget {
   const _BookRow({
     required this.book,
     required this.index,
@@ -146,12 +147,12 @@ class _BookRow extends StatelessWidget {
   final bool dimmed;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final c = context.traceColors;
+    final pagesRead = ref.watch(pagesReadProvider).value?[book.id] ?? 0;
     final total = book.totalPages;
-    final progress = total == null || total == 0
-        ? null
-        : (book.currentPage / total).clamp(0.0, 1.0);
+    final page = book.currentPage(pagesRead);
+    final progress = book.progress(pagesRead);
     // The bar fills once the row has landed.
     final fill = Duration(milliseconds: 140 + 55 * index.clamp(0, 7) + 220);
 
@@ -200,10 +201,10 @@ class _BookRow extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: TraceSpace.sm),
-                Text('${book.currentPage} / $total pages',
+                Text('$page / $total pages',
                     style: TraceText.mono.copyWith(color: c.textSecondary)),
               ] else
-                Text('${book.currentPage} pages read',
+                Text('$page pages read',
                     style: TraceText.mono.copyWith(color: c.textSecondary)),
             ],
           ),

@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/database/database.dart';
@@ -9,35 +12,59 @@ final entryRepositoryProvider = Provider<EntryRepository>(
   (ref) => EntryRepository(ref.watch(databaseProvider)),
 );
 
-/// The day Today is showing.
+/// Today's day key, kept current while the app stays open.
+///
+/// Read once at launch, it would leave Today showing yesterday — and filing new
+/// entries under the right day while showing the wrong one — until a restart.
+/// A timer moves it at midnight; since timers do not run while the app is
+/// suspended, resuming checks again.
+class CurrentDay extends Notifier<String> {
+  @override
+  String build() {
+    final now = DateTime.now();
+    final midnight = DateTime(now.year, now.month, now.day + 1);
+    // A second late, so the check cannot land just before the day turns.
+    final timer = Timer(
+      midnight.difference(now) + const Duration(seconds: 1),
+      _check,
+    );
+    final lifecycle = AppLifecycleListener(onResume: _check);
+    ref.onDispose(() {
+      timer.cancel();
+      lifecycle.dispose();
+    });
+    return dayKey(now);
+  }
+
+  void _check() {
+    if (dayKey(DateTime.now()) != state) ref.invalidateSelf();
+  }
+}
+
+final currentDayProvider =
+    NotifierProvider<CurrentDay, String>(CurrentDay.new);
+
+/// The day Today is showing. Follows [currentDayProvider], so it moves on at
+/// midnight along with the clock.
 ///
 /// A [Notifier] rather than the legacy `StateProvider`, which Riverpod 3 moved
 /// behind a separate import.
 class SelectedDate extends Notifier<String> {
   @override
-  String build() => dayKey(DateTime.now());
+  String build() => ref.watch(currentDayProvider);
 
   void select(String date) => state = date;
 
-  void today() => state = dayKey(DateTime.now());
+  void today() => state = ref.read(currentDayProvider);
 }
 
 final selectedDateProvider =
     NotifierProvider<SelectedDate, String>(SelectedDate.new);
 
-final entriesForDateProvider =
-    StreamProvider.family<List<Entry>, String>((ref, date) {
-  return ref.watch(entryRepositoryProvider).watchForDate(date);
-});
-
 final todayEntriesProvider = StreamProvider<List<Entry>>((ref) {
   final date = ref.watch(selectedDateProvider);
   return ref.watch(entryRepositoryProvider).watchForDate(date);
 });
-
-final timelineProvider = StreamProvider<List<DayGroup>>(
-  (ref) => ref.watch(entryRepositoryProvider).watchTimeline(),
-);
 
 final projectsProvider = StreamProvider<List<Project>>(
   (ref) => ref.watch(databaseProvider).watchProjects(),

@@ -246,13 +246,12 @@ Future<void> _seed(AppDatabase db) async {
       'finished',
     ),
   ];
-  for (final (id, title, author, page, total, status) in books) {
+  for (final (id, title, author, _, total, status) in books) {
     await db.upsertBook(
       BooksCompanion.insert(
         id: id,
         title: title,
         author: Value(author),
-        currentPage: Value(page),
         totalPages: Value(total),
         status: Value(status),
         createdAt: t0,
@@ -410,6 +409,22 @@ Future<void> _seed(AppDatabase db) async {
         title,
         minutes: lo + rnd.nextInt(hi - lo),
         at: 9 * 60,
+      );
+    }
+  }
+
+  // A bookmark is the sum of its sessions. Whatever the eight weeks above do
+  // not account for was read before them, so it goes in as one earlier session.
+  for (final (id, title, _, page, _, _) in books) {
+    final logged = await db.pagesRead(id);
+    if (page > logged) {
+      await entry(
+        today.subtract(const Duration(days: 80)),
+        'read',
+        title,
+        pages: page - logged,
+        book: id,
+        at: 20 * 60,
       );
     }
   }

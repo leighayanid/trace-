@@ -13,6 +13,7 @@ import '../../shared/widgets/section_label.dart';
 import '../../shared/widgets/trace_button.dart';
 import '../notes/note_providers.dart';
 import 'log_reading_sheet.dart';
+import 'book_repository.dart';
 import 'reading_providers.dart';
 
 /// One book, read editorially: cover, progress, the last thought it left.
@@ -46,10 +47,10 @@ class BookDetailScreen extends ConsumerWidget {
       return Scaffold(backgroundColor: c.bg, body: const SizedBox.shrink());
     }
 
+    final pagesRead = ref.watch(pagesReadProvider).value?[bookId] ?? 0;
     final total = book.totalPages;
-    final progress = total == null || total == 0
-        ? null
-        : (book.currentPage / total).clamp(0.0, 1.0);
+    final page = book.currentPage(pagesRead);
+    final progress = book.progress(pagesRead);
     final lastSession = sessions.firstOrNull;
     final lastThought = notes.firstOrNull;
 
@@ -138,14 +139,14 @@ class BookDetailScreen extends ConsumerWidget {
                       ),
                       const SizedBox(height: TraceSpace.md),
                       Text(
-                        '${book.currentPage} / $total pages',
+                        '$page / $total pages',
                         style: TraceText.mono.copyWith(color: c.textSecondary),
                       ),
                     ],
                   ).reveal(2, key: const ValueKey('progress'))
                 else
                   Text(
-                    '${book.currentPage} pages read',
+                    '$page pages read',
                     style: TraceText.mono.copyWith(color: c.textSecondary),
                   ).reveal(2, key: const ValueKey('pages')),
                 // Each optional section carries its own leading space, so it

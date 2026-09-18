@@ -1846,18 +1846,6 @@ class $BooksTable extends Books with TableInfo<$BooksTable, Book> {
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
-  static const VerificationMeta _currentPageMeta = const VerificationMeta(
-    'currentPage',
-  );
-  @override
-  late final GeneratedColumn<int> currentPage = GeneratedColumn<int>(
-    'current_page',
-    aliasedName,
-    false,
-    type: DriftSqlType.int,
-    requiredDuringInsert: false,
-    defaultValue: const Constant(0),
-  );
   static const VerificationMeta _totalPagesMeta = const VerificationMeta(
     'totalPages',
   );
@@ -1912,7 +1900,6 @@ class $BooksTable extends Books with TableInfo<$BooksTable, Book> {
     title,
     author,
     coverPath,
-    currentPage,
     totalPages,
     status,
     startedAt,
@@ -1989,15 +1976,6 @@ class $BooksTable extends Books with TableInfo<$BooksTable, Book> {
         coverPath.isAcceptableOrUnknown(data['cover_path']!, _coverPathMeta),
       );
     }
-    if (data.containsKey('current_page')) {
-      context.handle(
-        _currentPageMeta,
-        currentPage.isAcceptableOrUnknown(
-          data['current_page']!,
-          _currentPageMeta,
-        ),
-      );
-    }
     if (data.containsKey('total_pages')) {
       context.handle(
         _totalPagesMeta,
@@ -2067,10 +2045,6 @@ class $BooksTable extends Books with TableInfo<$BooksTable, Book> {
         DriftSqlType.string,
         data['${effectivePrefix}cover_path'],
       ),
-      currentPage: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}current_page'],
-      )!,
       totalPages: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}total_pages'],
@@ -2110,7 +2084,6 @@ class Book extends DataClass implements Insertable<Book> {
   final String title;
   final String? author;
   final String? coverPath;
-  final int currentPage;
   final int? totalPages;
 
   /// want | reading | finished | abandoned
@@ -2127,7 +2100,6 @@ class Book extends DataClass implements Insertable<Book> {
     required this.title,
     this.author,
     this.coverPath,
-    required this.currentPage,
     this.totalPages,
     required this.status,
     this.startedAt,
@@ -2153,7 +2125,6 @@ class Book extends DataClass implements Insertable<Book> {
     if (!nullToAbsent || coverPath != null) {
       map['cover_path'] = Variable<String>(coverPath);
     }
-    map['current_page'] = Variable<int>(currentPage);
     if (!nullToAbsent || totalPages != null) {
       map['total_pages'] = Variable<int>(totalPages);
     }
@@ -2186,7 +2157,6 @@ class Book extends DataClass implements Insertable<Book> {
       coverPath: coverPath == null && nullToAbsent
           ? const Value.absent()
           : Value(coverPath),
-      currentPage: Value(currentPage),
       totalPages: totalPages == null && nullToAbsent
           ? const Value.absent()
           : Value(totalPages),
@@ -2215,7 +2185,6 @@ class Book extends DataClass implements Insertable<Book> {
       title: serializer.fromJson<String>(json['title']),
       author: serializer.fromJson<String?>(json['author']),
       coverPath: serializer.fromJson<String?>(json['coverPath']),
-      currentPage: serializer.fromJson<int>(json['currentPage']),
       totalPages: serializer.fromJson<int?>(json['totalPages']),
       status: serializer.fromJson<String>(json['status']),
       startedAt: serializer.fromJson<DateTime?>(json['startedAt']),
@@ -2235,7 +2204,6 @@ class Book extends DataClass implements Insertable<Book> {
       'title': serializer.toJson<String>(title),
       'author': serializer.toJson<String?>(author),
       'coverPath': serializer.toJson<String?>(coverPath),
-      'currentPage': serializer.toJson<int>(currentPage),
       'totalPages': serializer.toJson<int?>(totalPages),
       'status': serializer.toJson<String>(status),
       'startedAt': serializer.toJson<DateTime?>(startedAt),
@@ -2253,7 +2221,6 @@ class Book extends DataClass implements Insertable<Book> {
     String? title,
     Value<String?> author = const Value.absent(),
     Value<String?> coverPath = const Value.absent(),
-    int? currentPage,
     Value<int?> totalPages = const Value.absent(),
     String? status,
     Value<DateTime?> startedAt = const Value.absent(),
@@ -2268,7 +2235,6 @@ class Book extends DataClass implements Insertable<Book> {
     title: title ?? this.title,
     author: author.present ? author.value : this.author,
     coverPath: coverPath.present ? coverPath.value : this.coverPath,
-    currentPage: currentPage ?? this.currentPage,
     totalPages: totalPages.present ? totalPages.value : this.totalPages,
     status: status ?? this.status,
     startedAt: startedAt.present ? startedAt.value : this.startedAt,
@@ -2285,9 +2251,6 @@ class Book extends DataClass implements Insertable<Book> {
       title: data.title.present ? data.title.value : this.title,
       author: data.author.present ? data.author.value : this.author,
       coverPath: data.coverPath.present ? data.coverPath.value : this.coverPath,
-      currentPage: data.currentPage.present
-          ? data.currentPage.value
-          : this.currentPage,
       totalPages: data.totalPages.present
           ? data.totalPages.value
           : this.totalPages,
@@ -2311,7 +2274,6 @@ class Book extends DataClass implements Insertable<Book> {
           ..write('title: $title, ')
           ..write('author: $author, ')
           ..write('coverPath: $coverPath, ')
-          ..write('currentPage: $currentPage, ')
           ..write('totalPages: $totalPages, ')
           ..write('status: $status, ')
           ..write('startedAt: $startedAt, ')
@@ -2331,7 +2293,6 @@ class Book extends DataClass implements Insertable<Book> {
     title,
     author,
     coverPath,
-    currentPage,
     totalPages,
     status,
     startedAt,
@@ -2350,7 +2311,6 @@ class Book extends DataClass implements Insertable<Book> {
           other.title == this.title &&
           other.author == this.author &&
           other.coverPath == this.coverPath &&
-          other.currentPage == this.currentPage &&
           other.totalPages == this.totalPages &&
           other.status == this.status &&
           other.startedAt == this.startedAt &&
@@ -2367,7 +2327,6 @@ class BooksCompanion extends UpdateCompanion<Book> {
   final Value<String> title;
   final Value<String?> author;
   final Value<String?> coverPath;
-  final Value<int> currentPage;
   final Value<int?> totalPages;
   final Value<String> status;
   final Value<DateTime?> startedAt;
@@ -2383,7 +2342,6 @@ class BooksCompanion extends UpdateCompanion<Book> {
     this.title = const Value.absent(),
     this.author = const Value.absent(),
     this.coverPath = const Value.absent(),
-    this.currentPage = const Value.absent(),
     this.totalPages = const Value.absent(),
     this.status = const Value.absent(),
     this.startedAt = const Value.absent(),
@@ -2400,7 +2358,6 @@ class BooksCompanion extends UpdateCompanion<Book> {
     required String title,
     this.author = const Value.absent(),
     this.coverPath = const Value.absent(),
-    this.currentPage = const Value.absent(),
     this.totalPages = const Value.absent(),
     this.status = const Value.absent(),
     this.startedAt = const Value.absent(),
@@ -2420,7 +2377,6 @@ class BooksCompanion extends UpdateCompanion<Book> {
     Expression<String>? title,
     Expression<String>? author,
     Expression<String>? coverPath,
-    Expression<int>? currentPage,
     Expression<int>? totalPages,
     Expression<String>? status,
     Expression<DateTime>? startedAt,
@@ -2437,7 +2393,6 @@ class BooksCompanion extends UpdateCompanion<Book> {
       if (title != null) 'title': title,
       if (author != null) 'author': author,
       if (coverPath != null) 'cover_path': coverPath,
-      if (currentPage != null) 'current_page': currentPage,
       if (totalPages != null) 'total_pages': totalPages,
       if (status != null) 'status': status,
       if (startedAt != null) 'started_at': startedAt,
@@ -2456,7 +2411,6 @@ class BooksCompanion extends UpdateCompanion<Book> {
     Value<String>? title,
     Value<String?>? author,
     Value<String?>? coverPath,
-    Value<int>? currentPage,
     Value<int?>? totalPages,
     Value<String>? status,
     Value<DateTime?>? startedAt,
@@ -2473,7 +2427,6 @@ class BooksCompanion extends UpdateCompanion<Book> {
       title: title ?? this.title,
       author: author ?? this.author,
       coverPath: coverPath ?? this.coverPath,
-      currentPage: currentPage ?? this.currentPage,
       totalPages: totalPages ?? this.totalPages,
       status: status ?? this.status,
       startedAt: startedAt ?? this.startedAt,
@@ -2512,9 +2465,6 @@ class BooksCompanion extends UpdateCompanion<Book> {
     if (coverPath.present) {
       map['cover_path'] = Variable<String>(coverPath.value);
     }
-    if (currentPage.present) {
-      map['current_page'] = Variable<int>(currentPage.value);
-    }
     if (totalPages.present) {
       map['total_pages'] = Variable<int>(totalPages.value);
     }
@@ -2545,7 +2495,6 @@ class BooksCompanion extends UpdateCompanion<Book> {
           ..write('title: $title, ')
           ..write('author: $author, ')
           ..write('coverPath: $coverPath, ')
-          ..write('currentPage: $currentPage, ')
           ..write('totalPages: $totalPages, ')
           ..write('status: $status, ')
           ..write('startedAt: $startedAt, ')
@@ -3882,18 +3831,6 @@ class $SyncStatesTable extends SyncStates
     requiredDuringInsert: false,
     defaultValue: const Constant(1),
   );
-  static const VerificationMeta _lastPullCursorMeta = const VerificationMeta(
-    'lastPullCursor',
-  );
-  @override
-  late final GeneratedColumn<DateTime> lastPullCursor =
-      GeneratedColumn<DateTime>(
-        'last_pull_cursor',
-        aliasedName,
-        true,
-        type: DriftSqlType.dateTime,
-        requiredDuringInsert: false,
-      );
   static const VerificationMeta _lastPushAtMeta = const VerificationMeta(
     'lastPushAt',
   );
@@ -3917,12 +3854,7 @@ class $SyncStatesTable extends SyncStates
     requiredDuringInsert: false,
   );
   @override
-  List<GeneratedColumn> get $columns => [
-    id,
-    lastPullCursor,
-    lastPushAt,
-    lastError,
-  ];
+  List<GeneratedColumn> get $columns => [id, lastPushAt, lastError];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -3937,15 +3869,6 @@ class $SyncStatesTable extends SyncStates
     final data = instance.toColumns(true);
     if (data.containsKey('id')) {
       context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
-    }
-    if (data.containsKey('last_pull_cursor')) {
-      context.handle(
-        _lastPullCursorMeta,
-        lastPullCursor.isAcceptableOrUnknown(
-          data['last_pull_cursor']!,
-          _lastPullCursorMeta,
-        ),
-      );
     }
     if (data.containsKey('last_push_at')) {
       context.handle(
@@ -3975,10 +3898,6 @@ class $SyncStatesTable extends SyncStates
         DriftSqlType.int,
         data['${effectivePrefix}id'],
       )!,
-      lastPullCursor: attachedDatabase.typeMapping.read(
-        DriftSqlType.dateTime,
-        data['${effectivePrefix}last_pull_cursor'],
-      ),
       lastPushAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}last_push_at'],
@@ -3998,22 +3917,13 @@ class $SyncStatesTable extends SyncStates
 
 class SyncState extends DataClass implements Insertable<SyncState> {
   final int id;
-  final DateTime? lastPullCursor;
   final DateTime? lastPushAt;
   final String? lastError;
-  const SyncState({
-    required this.id,
-    this.lastPullCursor,
-    this.lastPushAt,
-    this.lastError,
-  });
+  const SyncState({required this.id, this.lastPushAt, this.lastError});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['id'] = Variable<int>(id);
-    if (!nullToAbsent || lastPullCursor != null) {
-      map['last_pull_cursor'] = Variable<DateTime>(lastPullCursor);
-    }
     if (!nullToAbsent || lastPushAt != null) {
       map['last_push_at'] = Variable<DateTime>(lastPushAt);
     }
@@ -4026,9 +3936,6 @@ class SyncState extends DataClass implements Insertable<SyncState> {
   SyncStatesCompanion toCompanion(bool nullToAbsent) {
     return SyncStatesCompanion(
       id: Value(id),
-      lastPullCursor: lastPullCursor == null && nullToAbsent
-          ? const Value.absent()
-          : Value(lastPullCursor),
       lastPushAt: lastPushAt == null && nullToAbsent
           ? const Value.absent()
           : Value(lastPushAt),
@@ -4045,7 +3952,6 @@ class SyncState extends DataClass implements Insertable<SyncState> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return SyncState(
       id: serializer.fromJson<int>(json['id']),
-      lastPullCursor: serializer.fromJson<DateTime?>(json['lastPullCursor']),
       lastPushAt: serializer.fromJson<DateTime?>(json['lastPushAt']),
       lastError: serializer.fromJson<String?>(json['lastError']),
     );
@@ -4055,7 +3961,6 @@ class SyncState extends DataClass implements Insertable<SyncState> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
       'id': serializer.toJson<int>(id),
-      'lastPullCursor': serializer.toJson<DateTime?>(lastPullCursor),
       'lastPushAt': serializer.toJson<DateTime?>(lastPushAt),
       'lastError': serializer.toJson<String?>(lastError),
     };
@@ -4063,23 +3968,16 @@ class SyncState extends DataClass implements Insertable<SyncState> {
 
   SyncState copyWith({
     int? id,
-    Value<DateTime?> lastPullCursor = const Value.absent(),
     Value<DateTime?> lastPushAt = const Value.absent(),
     Value<String?> lastError = const Value.absent(),
   }) => SyncState(
     id: id ?? this.id,
-    lastPullCursor: lastPullCursor.present
-        ? lastPullCursor.value
-        : this.lastPullCursor,
     lastPushAt: lastPushAt.present ? lastPushAt.value : this.lastPushAt,
     lastError: lastError.present ? lastError.value : this.lastError,
   );
   SyncState copyWithCompanion(SyncStatesCompanion data) {
     return SyncState(
       id: data.id.present ? data.id.value : this.id,
-      lastPullCursor: data.lastPullCursor.present
-          ? data.lastPullCursor.value
-          : this.lastPullCursor,
       lastPushAt: data.lastPushAt.present
           ? data.lastPushAt.value
           : this.lastPushAt,
@@ -4091,7 +3989,6 @@ class SyncState extends DataClass implements Insertable<SyncState> {
   String toString() {
     return (StringBuffer('SyncState(')
           ..write('id: $id, ')
-          ..write('lastPullCursor: $lastPullCursor, ')
           ..write('lastPushAt: $lastPushAt, ')
           ..write('lastError: $lastError')
           ..write(')'))
@@ -4099,43 +3996,37 @@ class SyncState extends DataClass implements Insertable<SyncState> {
   }
 
   @override
-  int get hashCode => Object.hash(id, lastPullCursor, lastPushAt, lastError);
+  int get hashCode => Object.hash(id, lastPushAt, lastError);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is SyncState &&
           other.id == this.id &&
-          other.lastPullCursor == this.lastPullCursor &&
           other.lastPushAt == this.lastPushAt &&
           other.lastError == this.lastError);
 }
 
 class SyncStatesCompanion extends UpdateCompanion<SyncState> {
   final Value<int> id;
-  final Value<DateTime?> lastPullCursor;
   final Value<DateTime?> lastPushAt;
   final Value<String?> lastError;
   const SyncStatesCompanion({
     this.id = const Value.absent(),
-    this.lastPullCursor = const Value.absent(),
     this.lastPushAt = const Value.absent(),
     this.lastError = const Value.absent(),
   });
   SyncStatesCompanion.insert({
     this.id = const Value.absent(),
-    this.lastPullCursor = const Value.absent(),
     this.lastPushAt = const Value.absent(),
     this.lastError = const Value.absent(),
   });
   static Insertable<SyncState> custom({
     Expression<int>? id,
-    Expression<DateTime>? lastPullCursor,
     Expression<DateTime>? lastPushAt,
     Expression<String>? lastError,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
-      if (lastPullCursor != null) 'last_pull_cursor': lastPullCursor,
       if (lastPushAt != null) 'last_push_at': lastPushAt,
       if (lastError != null) 'last_error': lastError,
     });
@@ -4143,13 +4034,11 @@ class SyncStatesCompanion extends UpdateCompanion<SyncState> {
 
   SyncStatesCompanion copyWith({
     Value<int>? id,
-    Value<DateTime?>? lastPullCursor,
     Value<DateTime?>? lastPushAt,
     Value<String?>? lastError,
   }) {
     return SyncStatesCompanion(
       id: id ?? this.id,
-      lastPullCursor: lastPullCursor ?? this.lastPullCursor,
       lastPushAt: lastPushAt ?? this.lastPushAt,
       lastError: lastError ?? this.lastError,
     );
@@ -4160,9 +4049,6 @@ class SyncStatesCompanion extends UpdateCompanion<SyncState> {
     final map = <String, Expression>{};
     if (id.present) {
       map['id'] = Variable<int>(id.value);
-    }
-    if (lastPullCursor.present) {
-      map['last_pull_cursor'] = Variable<DateTime>(lastPullCursor.value);
     }
     if (lastPushAt.present) {
       map['last_push_at'] = Variable<DateTime>(lastPushAt.value);
@@ -4177,9 +4063,215 @@ class SyncStatesCompanion extends UpdateCompanion<SyncState> {
   String toString() {
     return (StringBuffer('SyncStatesCompanion(')
           ..write('id: $id, ')
-          ..write('lastPullCursor: $lastPullCursor, ')
           ..write('lastPushAt: $lastPushAt, ')
           ..write('lastError: $lastError')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $SyncCursorsTable extends SyncCursors
+    with TableInfo<$SyncCursorsTable, SyncCursor> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SyncCursorsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _seqMeta = const VerificationMeta('seq');
+  @override
+  late final GeneratedColumn<int> seq = GeneratedColumn<int>(
+    'seq',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [name, seq];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'sync_cursors';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<SyncCursor> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('seq')) {
+      context.handle(
+        _seqMeta,
+        seq.isAcceptableOrUnknown(data['seq']!, _seqMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_seqMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {name};
+  @override
+  SyncCursor map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SyncCursor(
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      seq: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}seq'],
+      )!,
+    );
+  }
+
+  @override
+  $SyncCursorsTable createAlias(String alias) {
+    return $SyncCursorsTable(attachedDatabase, alias);
+  }
+}
+
+class SyncCursor extends DataClass implements Insertable<SyncCursor> {
+  /// The server table name, e.g. `entries`.
+  final String name;
+  final int seq;
+  const SyncCursor({required this.name, required this.seq});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['name'] = Variable<String>(name);
+    map['seq'] = Variable<int>(seq);
+    return map;
+  }
+
+  SyncCursorsCompanion toCompanion(bool nullToAbsent) {
+    return SyncCursorsCompanion(name: Value(name), seq: Value(seq));
+  }
+
+  factory SyncCursor.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SyncCursor(
+      name: serializer.fromJson<String>(json['name']),
+      seq: serializer.fromJson<int>(json['seq']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'name': serializer.toJson<String>(name),
+      'seq': serializer.toJson<int>(seq),
+    };
+  }
+
+  SyncCursor copyWith({String? name, int? seq}) =>
+      SyncCursor(name: name ?? this.name, seq: seq ?? this.seq);
+  SyncCursor copyWithCompanion(SyncCursorsCompanion data) {
+    return SyncCursor(
+      name: data.name.present ? data.name.value : this.name,
+      seq: data.seq.present ? data.seq.value : this.seq,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SyncCursor(')
+          ..write('name: $name, ')
+          ..write('seq: $seq')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(name, seq);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SyncCursor && other.name == this.name && other.seq == this.seq);
+}
+
+class SyncCursorsCompanion extends UpdateCompanion<SyncCursor> {
+  final Value<String> name;
+  final Value<int> seq;
+  final Value<int> rowid;
+  const SyncCursorsCompanion({
+    this.name = const Value.absent(),
+    this.seq = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  SyncCursorsCompanion.insert({
+    required String name,
+    required int seq,
+    this.rowid = const Value.absent(),
+  }) : name = Value(name),
+       seq = Value(seq);
+  static Insertable<SyncCursor> custom({
+    Expression<String>? name,
+    Expression<int>? seq,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (name != null) 'name': name,
+      if (seq != null) 'seq': seq,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  SyncCursorsCompanion copyWith({
+    Value<String>? name,
+    Value<int>? seq,
+    Value<int>? rowid,
+  }) {
+    return SyncCursorsCompanion(
+      name: name ?? this.name,
+      seq: seq ?? this.seq,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (seq.present) {
+      map['seq'] = Variable<int>(seq.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SyncCursorsCompanion(')
+          ..write('name: $name, ')
+          ..write('seq: $seq, ')
+          ..write('rowid: $rowid')
           ..write(')'))
         .toString();
   }
@@ -4194,6 +4286,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $NotesTable notes = $NotesTable(this);
   late final $ProofsTable proofs = $ProofsTable(this);
   late final $SyncStatesTable syncStates = $SyncStatesTable(this);
+  late final $SyncCursorsTable syncCursors = $SyncCursorsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -4205,6 +4298,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     notes,
     proofs,
     syncStates,
+    syncCursors,
   ];
 }
 
@@ -5015,7 +5109,6 @@ typedef $$BooksTableCreateCompanionBuilder =
       required String title,
       Value<String?> author,
       Value<String?> coverPath,
-      Value<int> currentPage,
       Value<int?> totalPages,
       Value<String> status,
       Value<DateTime?> startedAt,
@@ -5033,7 +5126,6 @@ typedef $$BooksTableUpdateCompanionBuilder =
       Value<String> title,
       Value<String?> author,
       Value<String?> coverPath,
-      Value<int> currentPage,
       Value<int?> totalPages,
       Value<String> status,
       Value<DateTime?> startedAt,
@@ -5091,11 +5183,6 @@ class $$BooksTableFilterComposer extends Composer<_$AppDatabase, $BooksTable> {
 
   ColumnFilters<String> get coverPath => $composableBuilder(
     column: $table.coverPath,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<int> get currentPage => $composableBuilder(
-    column: $table.currentPage,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -5174,11 +5261,6 @@ class $$BooksTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<int> get currentPage => $composableBuilder(
-    column: $table.currentPage,
-    builder: (column) => ColumnOrderings(column),
-  );
-
   ColumnOrderings<int> get totalPages => $composableBuilder(
     column: $table.totalPages,
     builder: (column) => ColumnOrderings(column),
@@ -5236,11 +5318,6 @@ class $$BooksTableAnnotationComposer
   GeneratedColumn<String> get coverPath =>
       $composableBuilder(column: $table.coverPath, builder: (column) => column);
 
-  GeneratedColumn<int> get currentPage => $composableBuilder(
-    column: $table.currentPage,
-    builder: (column) => column,
-  );
-
   GeneratedColumn<int> get totalPages => $composableBuilder(
     column: $table.totalPages,
     builder: (column) => column,
@@ -5295,7 +5372,6 @@ class $$BooksTableTableManager
                 Value<String> title = const Value.absent(),
                 Value<String?> author = const Value.absent(),
                 Value<String?> coverPath = const Value.absent(),
-                Value<int> currentPage = const Value.absent(),
                 Value<int?> totalPages = const Value.absent(),
                 Value<String> status = const Value.absent(),
                 Value<DateTime?> startedAt = const Value.absent(),
@@ -5311,7 +5387,6 @@ class $$BooksTableTableManager
                 title: title,
                 author: author,
                 coverPath: coverPath,
-                currentPage: currentPage,
                 totalPages: totalPages,
                 status: status,
                 startedAt: startedAt,
@@ -5329,7 +5404,6 @@ class $$BooksTableTableManager
                 required String title,
                 Value<String?> author = const Value.absent(),
                 Value<String?> coverPath = const Value.absent(),
-                Value<int> currentPage = const Value.absent(),
                 Value<int?> totalPages = const Value.absent(),
                 Value<String> status = const Value.absent(),
                 Value<DateTime?> startedAt = const Value.absent(),
@@ -5345,7 +5419,6 @@ class $$BooksTableTableManager
                 title: title,
                 author: author,
                 coverPath: coverPath,
-                currentPage: currentPage,
                 totalPages: totalPages,
                 status: status,
                 startedAt: startedAt,
@@ -6019,14 +6092,12 @@ typedef $$ProofsTableProcessedTableManager =
 typedef $$SyncStatesTableCreateCompanionBuilder =
     SyncStatesCompanion Function({
       Value<int> id,
-      Value<DateTime?> lastPullCursor,
       Value<DateTime?> lastPushAt,
       Value<String?> lastError,
     });
 typedef $$SyncStatesTableUpdateCompanionBuilder =
     SyncStatesCompanion Function({
       Value<int> id,
-      Value<DateTime?> lastPullCursor,
       Value<DateTime?> lastPushAt,
       Value<String?> lastError,
     });
@@ -6042,11 +6113,6 @@ class $$SyncStatesTableFilterComposer
   });
   ColumnFilters<int> get id => $composableBuilder(
     column: $table.id,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<DateTime> get lastPullCursor => $composableBuilder(
-    column: $table.lastPullCursor,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -6075,11 +6141,6 @@ class $$SyncStatesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<DateTime> get lastPullCursor => $composableBuilder(
-    column: $table.lastPullCursor,
-    builder: (column) => ColumnOrderings(column),
-  );
-
   ColumnOrderings<DateTime> get lastPushAt => $composableBuilder(
     column: $table.lastPushAt,
     builder: (column) => ColumnOrderings(column),
@@ -6102,11 +6163,6 @@ class $$SyncStatesTableAnnotationComposer
   });
   GeneratedColumn<int> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
-
-  GeneratedColumn<DateTime> get lastPullCursor => $composableBuilder(
-    column: $table.lastPullCursor,
-    builder: (column) => column,
-  );
 
   GeneratedColumn<DateTime> get lastPushAt => $composableBuilder(
     column: $table.lastPushAt,
@@ -6149,24 +6205,20 @@ class $$SyncStatesTableTableManager
           updateCompanionCallback:
               ({
                 Value<int> id = const Value.absent(),
-                Value<DateTime?> lastPullCursor = const Value.absent(),
                 Value<DateTime?> lastPushAt = const Value.absent(),
                 Value<String?> lastError = const Value.absent(),
               }) => SyncStatesCompanion(
                 id: id,
-                lastPullCursor: lastPullCursor,
                 lastPushAt: lastPushAt,
                 lastError: lastError,
               ),
           createCompanionCallback:
               ({
                 Value<int> id = const Value.absent(),
-                Value<DateTime?> lastPullCursor = const Value.absent(),
                 Value<DateTime?> lastPushAt = const Value.absent(),
                 Value<String?> lastError = const Value.absent(),
               }) => SyncStatesCompanion.insert(
                 id: id,
-                lastPullCursor: lastPullCursor,
                 lastPushAt: lastPushAt,
                 lastError: lastError,
               ),
@@ -6201,6 +6253,154 @@ typedef $$SyncStatesTableProcessedTableManager =
       SyncState,
       PrefetchHooks Function()
     >;
+typedef $$SyncCursorsTableCreateCompanionBuilder =
+    SyncCursorsCompanion Function({
+      required String name,
+      required int seq,
+      Value<int> rowid,
+    });
+typedef $$SyncCursorsTableUpdateCompanionBuilder =
+    SyncCursorsCompanion Function({
+      Value<String> name,
+      Value<int> seq,
+      Value<int> rowid,
+    });
+
+class $$SyncCursorsTableFilterComposer
+    extends Composer<_$AppDatabase, $SyncCursorsTable> {
+  $$SyncCursorsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get seq => $composableBuilder(
+    column: $table.seq,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$SyncCursorsTableOrderingComposer
+    extends Composer<_$AppDatabase, $SyncCursorsTable> {
+  $$SyncCursorsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get seq => $composableBuilder(
+    column: $table.seq,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$SyncCursorsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $SyncCursorsTable> {
+  $$SyncCursorsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<int> get seq =>
+      $composableBuilder(column: $table.seq, builder: (column) => column);
+}
+
+class $$SyncCursorsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $SyncCursorsTable,
+          SyncCursor,
+          $$SyncCursorsTableFilterComposer,
+          $$SyncCursorsTableOrderingComposer,
+          $$SyncCursorsTableAnnotationComposer,
+          $$SyncCursorsTableCreateCompanionBuilder,
+          $$SyncCursorsTableUpdateCompanionBuilder,
+          (
+            SyncCursor,
+            BaseReferences<_$AppDatabase, $SyncCursorsTable, SyncCursor>,
+          ),
+          SyncCursor,
+          PrefetchHooks Function()
+        > {
+  $$SyncCursorsTableTableManager(_$AppDatabase db, $SyncCursorsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SyncCursorsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SyncCursorsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SyncCursorsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> name = const Value.absent(),
+                Value<int> seq = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SyncCursorsCompanion(name: name, seq: seq, rowid: rowid),
+          createCompanionCallback:
+              ({
+                required String name,
+                required int seq,
+                Value<int> rowid = const Value.absent(),
+              }) => SyncCursorsCompanion.insert(
+                name: name,
+                seq: seq,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$SyncCursorsTable, SyncCursor>(table),
+                  BaseReferences<_$AppDatabase, $SyncCursorsTable, SyncCursor>(
+                    db,
+                    table,
+                    e,
+                  ),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$SyncCursorsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $SyncCursorsTable,
+      SyncCursor,
+      $$SyncCursorsTableFilterComposer,
+      $$SyncCursorsTableOrderingComposer,
+      $$SyncCursorsTableAnnotationComposer,
+      $$SyncCursorsTableCreateCompanionBuilder,
+      $$SyncCursorsTableUpdateCompanionBuilder,
+      (
+        SyncCursor,
+        BaseReferences<_$AppDatabase, $SyncCursorsTable, SyncCursor>,
+      ),
+      SyncCursor,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -6217,4 +6417,6 @@ class $AppDatabaseManager {
       $$ProofsTableTableManager(_db, _db.proofs);
   $$SyncStatesTableTableManager get syncStates =>
       $$SyncStatesTableTableManager(_db, _db.syncStates);
+  $$SyncCursorsTableTableManager get syncCursors =>
+      $$SyncCursorsTableTableManager(_db, _db.syncCursors);
 }

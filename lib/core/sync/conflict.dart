@@ -62,17 +62,22 @@ abstract final class Conflict {
     return clientTime.isAfter(ceiling) ? ceiling : clientTime;
   }
 
-  /// The next pull cursor: the newest `updated_at` actually received.
+  /// The next pull cursor: the highest `server_seq` actually received.
+  ///
+  /// The cursor is the server's order, never `updated_at`. A client timestamp
+  /// records when an edit was made, not when the server learned of it, so a
+  /// device syncing late would land rows behind a cursor that had already
+  /// passed them.
   ///
   /// Returns [current] for an empty page, so a pull that returns nothing cannot
   /// rewind the cursor and re-download history on every sync.
-  static DateTime? advanceCursor({
-    required DateTime? current,
-    required Iterable<DateTime> received,
+  static int? advanceCursor({
+    required int? current,
+    required Iterable<int> received,
   }) {
     var next = current;
-    for (final t in received) {
-      if (next == null || t.isAfter(next)) next = t;
+    for (final s in received) {
+      if (next == null || s > next) next = s;
     }
     return next;
   }

@@ -31,28 +31,6 @@ class ParsedEntry {
   /// False when the category fell back to a default rather than being
   /// recognised — the UI uses this to draw attention to the category field.
   final bool matchedCategory;
-
-  ParsedEntry copyWith({
-    Category? category,
-    String? title,
-    Duration? duration,
-    double? quantity,
-    String? quantityUnit,
-    String? projectId,
-    String? bookId,
-  }) {
-    return ParsedEntry(
-      raw: raw,
-      category: category ?? this.category,
-      title: title ?? this.title,
-      duration: duration ?? this.duration,
-      quantity: quantity ?? this.quantity,
-      quantityUnit: quantityUnit ?? this.quantityUnit,
-      projectId: projectId ?? this.projectId,
-      bookId: bookId ?? this.bookId,
-      matchedCategory: matchedCategory,
-    );
-  }
 }
 
 /// A name the parser can match against — a known project or book.

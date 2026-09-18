@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/theme/theme.dart';
 import '../../core/parser/duration_grammar.dart';
-import '../../core/parser/entry_parser.dart';
+import '../../core/parser/quantity_grammar.dart';
 import '../../shared/models/category.dart';
 import '../../shared/widgets/category_glyph.dart';
 import '../../shared/widgets/mono_duration.dart';
@@ -13,14 +13,16 @@ import '../../shared/widgets/reveal.dart';
 import '../../shared/widgets/save_sweep.dart';
 import '../../shared/widgets/trace_button.dart';
 import '../../shared/widgets/trace_sheet.dart';
+import 'entry_draft.dart';
 import 'entry_providers.dart';
 
 /// The confirmation form. Every field the parser proposed is editable here —
 /// the parser suggests, the user decides.
 class AddEntryScreen extends ConsumerStatefulWidget {
-  const AddEntryScreen({super.key, required this.parsed, this.entryId});
+  const AddEntryScreen({super.key, required this.draft, this.entryId});
 
-  final ParsedEntry parsed;
+  /// What the form opens with: the parser's proposal, or the stored entry.
+  final EntryDraft draft;
 
   /// Set when editing an existing entry rather than creating one.
   final String? entryId;
@@ -30,11 +32,17 @@ class AddEntryScreen extends ConsumerStatefulWidget {
 }
 
 class _AddEntryScreenState extends ConsumerState<AddEntryScreen> {
-  late Category _category = widget.parsed.category;
-  late String _title = widget.parsed.title;
-  late Duration? _duration = widget.parsed.duration;
-  late String? _projectId = widget.parsed.projectId;
-  final _noteController = TextEditingController();
+  late Category _category = widget.draft.category;
+  late String _title = widget.draft.title;
+  late Duration? _duration = widget.draft.duration;
+  late double? _quantity = widget.draft.quantity;
+  late String? _quantityUnit = widget.draft.quantityUnit;
+  late String? _projectId = widget.draft.projectId;
+  late String? _bookId = widget.draft.bookId;
+  // Opens with the entry's note when editing — an empty box would read as a
+  // note that was never written, and saving it would erase the real one.
+  late final _noteController =
+      TextEditingController(text: widget.draft.description);
   bool _saving = false;
 
   @override
@@ -48,29 +56,21 @@ class _AddEntryScreenState extends ConsumerState<AddEntryScreen> {
     setState(() => _saving = true);
 
     final repo = ref.read(entryRepositoryProvider);
-    final note = _noteController.text.trim();
+    final draft = EntryDraft(
+      category: _category,
+      title: _title.trim(),
+      description: _noteController.text,
+      duration: _duration,
+      quantity: _quantity,
+      quantityUnit: _quantityUnit,
+      projectId: _projectId,
+      bookId: _bookId,
+    );
 
     if (widget.entryId != null) {
-      await repo.update(
-        id: widget.entryId!,
-        category: _category,
-        title: _title,
-        description: note.isEmpty ? null : note,
-        duration: _duration,
-        projectId: _projectId,
-      );
+      await repo.save(widget.entryId!, draft);
     } else {
-      final id = await repo.createFromParsed(
-        widget.parsed.copyWith(
-          category: _category,
-          title: _title,
-          duration: _duration,
-          projectId: _projectId,
-        ),
-      );
-      if (note.isNotEmpty) {
-        await repo.update(id: id, description: note);
-      }
+      await repo.create(draft);
     }
 
     if (!mounted) return;
@@ -85,6 +85,10 @@ class _AddEntryScreenState extends ConsumerState<AddEntryScreen> {
     final projectName = _projectId == null
         ? null
         : projects.where((p) => p.id == _projectId).firstOrNull?.name;
+    final books = ref.watch(booksProvider).value ?? const [];
+    final bookTitle = _bookId == null
+        ? null
+        : books.where((b) => b.id == _bookId).firstOrNull?.title;
 
     return Scaffold(
       backgroundColor: c.bg,
@@ -127,8 +131,8 @@ class _AddEntryScreenState extends ConsumerState<AddEntryScreen> {
                           onChanged: (v) => setState(() => _title = v),
                         ),
                       ).reveal(2),
-                      // Project belongs to BUILD alone. Switching category in
-                      // or out of it folds the field open or shut, so the form
+                      // Project belongs to BUILD and Book to READ. Switching
+                      // category folds the field open or shut, so the form
                       // below moves rather than jumps.
                       AnimatedSwitcher(
                         duration: const Duration(milliseconds: 380),
@@ -140,23 +144,39 @@ class _AddEntryScreenState extends ConsumerState<AddEntryScreen> {
                           child:
                               FadeTransition(opacity: animation, child: child),
                         ),
-                        child: _category != Category.build
-                            ? const SizedBox(key: ValueKey('no-project'))
-                            : Padding(
-                                key: const ValueKey('project'),
-                                padding:
-                                    const EdgeInsets.only(top: TraceSpace.xl),
-                                child: _labelled(
+                        child: switch (_category) {
+                          Category.build => Padding(
+                              key: const ValueKey('project'),
+                              padding:
+                                  const EdgeInsets.only(top: TraceSpace.xl),
+                              child: _labelled(
+                                context,
+                                'Project',
+                                _tappableRow(
                                   context,
-                                  'Project',
-                                  _tappableRow(
-                                    context,
-                                    projectName ?? 'None',
-                                    muted: projectName == null,
-                                    onTap: () => _pickProject(context),
-                                  ),
+                                  projectName ?? 'None',
+                                  muted: projectName == null,
+                                  onTap: () => _pickProject(context),
                                 ),
                               ),
+                            ),
+                          Category.read => Padding(
+                              key: const ValueKey('book'),
+                              padding:
+                                  const EdgeInsets.only(top: TraceSpace.xl),
+                              child: _labelled(
+                                context,
+                                'Book',
+                                _tappableRow(
+                                  context,
+                                  bookTitle ?? 'None',
+                                  muted: bookTitle == null,
+                                  onTap: () => _pickBook(context),
+                                ),
+                              ),
+                            ),
+                          _ => const SizedBox(key: ValueKey('no-link')),
+                        },
                       ).reveal(3),
                       const SizedBox(height: TraceSpace.xl),
                       _labelled(
@@ -174,8 +194,23 @@ class _AddEntryScreenState extends ConsumerState<AddEntryScreen> {
                         ),
                       ).reveal(4),
                       const SizedBox(height: TraceSpace.xl),
+                      _labelled(
+                        context,
+                        'Amount',
+                        _tappableRow(
+                          context,
+                          _quantity == null || _quantityUnit == null
+                              ? 'None'
+                              : QuantityGrammar.format(
+                                  _quantity!, _quantityUnit!),
+                          muted: _quantity == null,
+                          mono: _quantity != null,
+                          onTap: _pickQuantity,
+                        ),
+                      ).reveal(5),
+                      const SizedBox(height: TraceSpace.xl),
                       _labelled(context, 'Note (optional)', _noteBox(context))
-                          .reveal(5),
+                          .reveal(6),
                       // Proof is deliberately absent in Phase 1. Git and
                       // screenshot capture need real integrations, and a row
                       // that does nothing is worse than no row.
@@ -363,9 +398,13 @@ class _AddEntryScreenState extends ConsumerState<AddEntryScreen> {
     if (picked != null) setState(() => _category = picked);
   }
 
+  // Pickers return a record, so "chose None" (`(id: null)`) and "dismissed
+  // the sheet" (null) stay different answers. A bare `String?` made a swipe
+  // down unlink the project.
+
   Future<void> _pickProject(BuildContext context) async {
     final projects = ref.read(projectsProvider).value ?? const [];
-    final picked = await showTraceSheet<String?>(
+    final picked = await showTraceSheet<({String? id})>(
       context: context,
       builder: (context) => _PickerSheet(
         title: 'Project',
@@ -373,18 +412,42 @@ class _AddEntryScreenState extends ConsumerState<AddEntryScreen> {
           _PickerRow(
             label: 'None',
             selected: _projectId == null,
-            onTap: () => Navigator.of(context).pop(null),
+            onTap: () => Navigator.of(context).pop((id: null)),
           ),
           for (final p in projects)
             _PickerRow(
               label: p.name,
               selected: p.id == _projectId,
-              onTap: () => Navigator.of(context).pop(p.id),
+              onTap: () => Navigator.of(context).pop((id: p.id)),
             ),
         ],
       ),
     );
-    if (mounted) setState(() => _projectId = picked);
+    if (mounted && picked != null) setState(() => _projectId = picked.id);
+  }
+
+  Future<void> _pickBook(BuildContext context) async {
+    final books = ref.read(booksProvider).value ?? const [];
+    final picked = await showTraceSheet<({String? id})>(
+      context: context,
+      builder: (context) => _PickerSheet(
+        title: 'Book',
+        children: [
+          _PickerRow(
+            label: 'None',
+            selected: _bookId == null,
+            onTap: () => Navigator.of(context).pop((id: null)),
+          ),
+          for (final b in books)
+            _PickerRow(
+              label: b.title,
+              selected: b.id == _bookId,
+              onTap: () => Navigator.of(context).pop((id: b.id)),
+            ),
+        ],
+      ),
+    );
+    if (mounted && picked != null) setState(() => _bookId = picked.id);
   }
 
   /// Duration is typed, not dialled.
@@ -392,13 +455,49 @@ class _AddEntryScreenState extends ConsumerState<AddEntryScreen> {
   /// Reuses [DurationGrammar], so "2h 34m" works the same here as it does in
   /// Quick Add — one grammar, learned once.
   Future<void> _pickDuration() async {
-    final controller = TextEditingController(
-      text: _duration == null
+    final picked = await _typedValue<Duration>(
+      title: 'Duration',
+      hint: 'e.g. 2h 34m',
+      initial: _duration == null
           ? ''
           : formatDuration(_duration!, DurationFormat.human),
+      parse: (v) => DurationGrammar.find(v)?.duration,
     );
+    if (mounted && picked != null) setState(() => _duration = picked.value);
+  }
 
-    final result = await showTraceSheet<Duration?>(
+  /// Pages, distance, sessions — typed through [QuantityGrammar], like Quick
+  /// Add. Pages logged against a book move its bookmark.
+  Future<void> _pickQuantity() async {
+    final picked = await _typedValue<QuantityMatch>(
+      title: 'Amount',
+      hint: 'e.g. 27 pages',
+      initial: _quantity == null || _quantityUnit == null
+          ? ''
+          : QuantityGrammar.format(_quantity!, _quantityUnit!),
+      parse: QuantityGrammar.find,
+    );
+    if (!mounted || picked == null) return;
+    setState(() {
+      _quantity = picked.value?.value;
+      _quantityUnit = picked.value?.unit;
+    });
+  }
+
+  /// A one-field sheet for a typed value.
+  ///
+  /// Returns null when dismissed or when the text does not parse, so neither
+  /// changes anything. `(value: null)` means clear: from the None row, or from
+  /// submitting an empty field.
+  Future<({T? value})?> _typedValue<T extends Object>({
+    required String title,
+    required String hint,
+    required String initial,
+    required T? Function(String) parse,
+  }) async {
+    final controller = TextEditingController(text: initial);
+
+    final result = await showTraceSheet<({T? value})>(
       context: context,
       isScrollControlled: true,
       builder: (context) {
@@ -408,7 +507,7 @@ class _AddEntryScreenState extends ConsumerState<AddEntryScreen> {
             bottom: MediaQuery.viewInsetsOf(context).bottom,
           ),
           child: _PickerSheet(
-            title: 'Duration',
+            title: title,
             children: [
               Padding(
                 padding: const EdgeInsets.all(TraceSpace.gutter),
@@ -417,7 +516,7 @@ class _AddEntryScreenState extends ConsumerState<AddEntryScreen> {
                   autofocus: true,
                   style: TraceText.body.copyWith(color: c.textPrimary),
                   decoration: InputDecoration(
-                    hintText: 'e.g. 2h 34m',
+                    hintText: hint,
                     hintStyle: TraceText.body.copyWith(color: c.textSecondary),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(TraceRadius.input),
@@ -428,10 +527,20 @@ class _AddEntryScreenState extends ConsumerState<AddEntryScreen> {
                       borderSide: BorderSide(color: c.border),
                     ),
                   ),
-                  onSubmitted: (v) => Navigator.of(context).pop(
-                    DurationGrammar.find(v)?.duration,
-                  ),
+                  onSubmitted: (v) {
+                    if (v.trim().isEmpty) {
+                      Navigator.of(context).pop((value: null));
+                      return;
+                    }
+                    final parsed = parse(v);
+                    Navigator.of(context)
+                        .pop(parsed == null ? null : (value: parsed));
+                  },
                 ),
+              ),
+              _PickerRow(
+                label: 'None',
+                onTap: () => Navigator.of(context).pop((value: null)),
               ),
             ],
           ),
@@ -440,7 +549,7 @@ class _AddEntryScreenState extends ConsumerState<AddEntryScreen> {
     );
 
     controller.dispose();
-    if (mounted && result != null) setState(() => _duration = result);
+    return result;
   }
 }
 

@@ -46,26 +46,31 @@ class DataApiClient {
     }
   }
 
-  /// Rows changed strictly after [cursor], oldest first.
+  /// Rows the server stamped strictly after [afterSeq], in server order.
   ///
-  /// Ordering by `updated_at` ascending is what makes the cursor resumable: a
-  /// pull can stop at any point and continue from the last row it saw.
+  /// `server_seq` is assigned by Postgres on every write (migration 002), so it
+  /// is unique and follows arrival at the server. That is what makes the
+  /// cursor resumable, and what stops a late-syncing device's rows, or a page
+  /// of rows sharing one timestamp, from falling behind it.
   Future<List<Map<String, dynamic>>> pull({
     required String table,
-    required DateTime? cursor,
+    required int? afterSeq,
     int limit = pageSize,
   }) {
     return _guarded(() async {
       var query = _client.from(table).select();
-      if (cursor != null) {
-        query = query.gt('updated_at', cursor.toUtc().toIso8601String());
-      }
-      final rows = await query.order('updated_at', ascending: true).limit(limit);
+      if (afterSeq != null) query = query.gt('server_seq', afterSeq);
+      final rows =
+          await query.order('server_seq', ascending: true).limit(limit);
       return List<Map<String, dynamic>>.from(rows as List);
     });
   }
 
   /// Upserts a batch, keyed on the primary key.
+  ///
+  /// The server refuses to let an older `updated_at` overwrite a newer one
+  /// (migration 002). A refused row is re-stamped rather than dropped, so the
+  /// pull that follows brings the winning version back to this device.
   ///
   /// `user_id` is deliberately absent from the payload: the column defaults to
   /// `auth.uid()`, so the server decides ownership from the token and a

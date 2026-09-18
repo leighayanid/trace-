@@ -72,11 +72,13 @@ class Projects extends Table with SyncTail {
   DateTimeColumn get endedAt => dateTime().nullable()();
 }
 
+/// A book. Where the bookmark sits is not stored here: it is the sum of the
+/// pages logged against the book, so a deleted or edited session moves it back,
+/// and sessions logged offline on two devices both count.
 class Books extends Table with SyncTail {
   TextColumn get title => text()();
   TextColumn get author => text().nullable()();
   TextColumn get coverPath => text().nullable()();
-  IntColumn get currentPage => integer().withDefault(const Constant(0))();
   IntColumn get totalPages => integer().nullable()();
 
   /// want | reading | finished | abandoned
@@ -115,10 +117,23 @@ class Proofs extends Table with SyncTail {
 /// Single-row sync bookkeeping. Local only, never synced.
 class SyncStates extends Table {
   IntColumn get id => integer().withDefault(const Constant(1))();
-  DateTimeColumn get lastPullCursor => dateTime().nullable()();
   DateTimeColumn get lastPushAt => dateTime().nullable()();
   TextColumn get lastError => text().nullable()();
 
   @override
   Set<Column> get primaryKey => {id};
+}
+
+/// How far each server table has been pulled, as the highest `server_seq`
+/// applied. Local only, never synced.
+///
+/// One cursor per table, not one shared: a shared cursor carried the position
+/// reached in one table into the next, and silently skipped the rows between.
+class SyncCursors extends Table {
+  /// The server table name, e.g. `entries`.
+  TextColumn get name => text()();
+  IntColumn get seq => integer()();
+
+  @override
+  Set<Column> get primaryKey => {name};
 }

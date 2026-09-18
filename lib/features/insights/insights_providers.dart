@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../../core/database/database.dart';
 import '../../core/database/database_provider.dart';
 import '../../shared/models/category.dart';
+import '../entries/entry_providers.dart';
 
 enum InsightsRange { month, year }
 
@@ -54,6 +55,8 @@ class InsightsData {
 final insightsProvider = StreamProvider<InsightsData>((ref) {
   final range = ref.watch(insightsRangeProvider);
   final db = ref.watch(databaseProvider);
+  // Recomputes when the day turns, so the month and year roll over too.
+  ref.watch(currentDayProvider);
   final now = DateTime.now();
   final fmt = DateFormat('yyyy-MM-dd');
 

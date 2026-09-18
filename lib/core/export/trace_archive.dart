@@ -14,7 +14,7 @@ import '../sync/row_mappers.dart';
 /// path and not just a read-only souvenir.
 abstract final class TraceArchive {
   /// Bumped only when the shape changes in a way a reader must notice.
-  static const formatVersion = 1;
+  static const formatVersion = 2;
 
   /// The complete record as a JSON-encodable map.
   ///
