@@ -30,7 +30,9 @@ void main() {
 
   Future<String> quickAdd(Book book, String text) {
     final parser = EntryParser(books: [NamedRef(book.id, book.title)]);
-    return entries.create(EntryDraft.fromParsed(parser.parse(text)));
+    return entries.create(
+      EntryDraft.fromParsed(parser.parse(text), today: DateTime.now()),
+    );
   }
 
   test('logging reading moves the bookmark and records a session', () async {

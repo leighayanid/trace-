@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 
 import '../../app/theme/theme.dart';
 import '../../core/database/database.dart';
@@ -14,6 +13,7 @@ import '../../shared/widgets/reveal.dart';
 import '../../shared/widgets/section_label.dart';
 import '../../shared/widgets/trace_button.dart';
 import 'project_providers.dart';
+import 'project_sessions_screen.dart';
 import 'project_repository.dart';
 
 class ProjectDetailScreen extends ConsumerWidget {
@@ -147,7 +147,7 @@ class ProjectDetailScreen extends ConsumerWidget {
                   ).reveal(5, key: const ValueKey('no-sessions'))
                 else
                   for (final (i, e) in sessions.take(5).indexed)
-                    _sessionRow(context, e).reveal(
+                    SessionRow(entry: e).reveal(
                       5 + i,
                       late: RevealLate.expand,
                       key: ValueKey(e.id),
@@ -159,7 +159,14 @@ class ProjectDetailScreen extends ConsumerWidget {
                       alignment: Alignment.centerLeft,
                       child: TraceButton.text(
                         'View all ${sessions.length} sessions',
-                        onPressed: () {},
+                        onPressed: () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => ProjectSessionsScreen(
+                              projectId: projectId,
+                              name: project.name,
+                            ),
+                          ),
+                        ),
                       ),
                     ),
                   ).reveal(10, key: const ValueKey('all-sessions')),
@@ -214,29 +221,6 @@ class ProjectDetailScreen extends ConsumerWidget {
           status.label,
           style: TraceText.rowSubtitle.copyWith(color: c.navy),
         ),
-      ),
-    );
-  }
-
-  Widget _sessionRow(BuildContext context, Entry e) {
-    final c = context.traceColors;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: TraceSpace.md),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              DateFormat('MMM d, yyyy').format(DateTime.parse(e.date)),
-              style: TraceText.rowSubtitle.copyWith(color: c.textSecondary),
-            ),
-          ),
-          if (e.durationSecs != null)
-            MonoDuration(
-              Duration(seconds: e.durationSecs!),
-              format: DurationFormat.human,
-              animate: false,
-            ),
-        ],
       ),
     );
   }

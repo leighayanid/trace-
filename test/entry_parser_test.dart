@@ -155,4 +155,92 @@ void main() {
       expect(r.category, Category.life);
     });
   });
+
+  group('EntryParser — which day', () {
+    // A Friday.
+    final today = DateTime(2026, 9, 18);
+    DateTime? dayOf(String input) => parser.parse(input).day?.resolve(today);
+
+    test('says nothing when the sentence does not', () {
+      expect(parser.parse('walked for 30m').day, isNull);
+    });
+
+    test('yesterday and last night', () {
+      expect(dayOf('walked yesterday'), DateTime(2026, 9, 17));
+      expect(dayOf('slept 8 hours last night'), DateTime(2026, 9, 17));
+      expect(dayOf('read yesterday evening'), DateTime(2026, 9, 17));
+    });
+
+    test('the day before yesterday wins over yesterday', () {
+      expect(dayOf('coded the day before yesterday'), DateTime(2026, 9, 16));
+    });
+
+    test('days ago, in digits or words', () {
+      expect(dayOf('ran 5 km 3 days ago'), DateTime(2026, 9, 15));
+      expect(dayOf('walked two days ago'), DateTime(2026, 9, 16));
+    });
+
+    test('a weekday is the most recent one before today', () {
+      expect(dayOf('coded on monday'), DateTime(2026, 9, 14));
+      // Today is Friday, so "on friday" means last week's.
+      expect(dayOf('walked last friday'), DateTime(2026, 9, 11));
+    });
+
+    test('"today" and "this morning" are today', () {
+      expect(dayOf('coded today'), today);
+      expect(dayOf('walked this morning'), today);
+    });
+
+    test('crosses a month boundary', () {
+      final first = DateTime(2026, 10, 1);
+      expect(parser.parse('walked yesterday').day!.resolve(first),
+          DateTime(2026, 9, 30));
+    });
+
+    test('the day is cut out of the title', () {
+      final r = parser.parse('explored durable objects yesterday for 40m');
+      expect(r.title, 'Durable objects');
+    });
+
+    test('a bare verb becomes the title rather than the raw sentence', () {
+      expect(parser.parse('walked yesterday').title, 'Walked');
+      expect(parser.parse('walked for 30m').title, 'Walked');
+    });
+  });
+
+  group('EntryParser — names', () {
+    test('a name never matches inside another word', () {
+      const p = EntryParser(projects: [NamedRef('p9', 'Art')]);
+      final r = p.parse('started coding for 2h');
+      expect(r.projectId, isNull);
+    });
+
+    test('spacing and punctuation in a name are forgiven', () {
+      for (final s in [
+        'coded on pdsexpress for 1h',
+        'coded on PDS-Express for 1h',
+        'coded on pds  express for 1h',
+      ]) {
+        expect(parser.parse(s).projectId, 'p1', reason: s);
+      }
+    });
+
+    test('a known name is enough to set the category', () {
+      final build = parser.parse('2h on TRACE');
+      expect(build.category, Category.build);
+      expect(build.matchedCategory, isTrue);
+      expect(build.projectId, 'p3');
+
+      final read = parser.parse('Atomic Habits 20m');
+      expect(read.category, Category.read);
+      expect(read.bookId, 'b1');
+    });
+
+    test('a project named in a LIFE sentence is not its title', () {
+      final r = parser.parse('walked to the TRACE meetup');
+      expect(r.category, Category.life);
+      expect(r.projectId, isNull);
+      expect(r.title, isNot('TRACE'));
+    });
+  });
 }

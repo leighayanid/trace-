@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../app/theme/theme.dart';
 import '../../shared/models/category.dart';
 import '../../shared/widgets/mono_duration.dart';
+import '../../shared/widgets/period_stepper.dart';
 import '../../shared/widgets/reveal.dart';
 import '../../shared/widgets/section_label.dart';
 import '../../shared/widgets/trace_segmented.dart';
@@ -46,6 +47,8 @@ class InsightsScreen extends ConsumerWidget {
                     .reveal(0),
                 const SizedBox(height: TraceSpace.xl),
                 _segmented(context, ref, range).reveal(1),
+                const SizedBox(height: TraceSpace.lg),
+                _stepper(ref, range).reveal(2),
                 const SizedBox(height: TraceSpace.section),
                 // Keeps showing the old period while the new one computes, then
                 // cross-fades — rather than blanking to a loading state between.
@@ -98,11 +101,23 @@ class InsightsScreen extends ConsumerWidget {
   Widget _segmented(BuildContext context, WidgetRef ref, InsightsRange range) {
     return TraceSegmented<InsightsRange>(
       segments: const {
-        InsightsRange.month: 'This Month',
-        InsightsRange.year: 'This Year',
+        InsightsRange.month: 'Month',
+        InsightsRange.year: 'Year',
       },
       selected: range,
       onSelect: ref.read(insightsRangeProvider.notifier).select,
+    );
+  }
+
+  Widget _stepper(WidgetRef ref, InsightsRange range) {
+    final start = ref.watch(insightsPeriodProvider);
+    final period = ref.read(insightsPeriodProvider.notifier);
+    return PeriodStepper(
+      label: DateFormat(range == InsightsRange.month ? 'MMMM yyyy' : 'yyyy')
+          .format(start),
+      direction: period.direction,
+      onPrevious: period.previous,
+      onNext: period.isCurrent ? null : period.next,
     );
   }
 

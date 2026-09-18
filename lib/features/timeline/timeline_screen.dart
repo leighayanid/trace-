@@ -8,9 +8,12 @@ import 'package:intl/intl.dart';
 import '../../app/theme/theme.dart';
 import '../../core/database/database.dart';
 import '../../core/parser/quantity_grammar.dart';
+import '../../shared/widgets/day_picker.dart';
 import '../../shared/widgets/entry_row.dart';
+import '../../shared/widgets/period_stepper.dart';
 import '../../shared/widgets/press_scale.dart';
 import '../../shared/widgets/reveal.dart';
+import '../entries/entry_providers.dart';
 import '../entries/entry_repository.dart';
 import 'timeline_providers.dart';
 
@@ -47,8 +50,29 @@ class TimelineScreen extends ConsumerWidget {
                   Text('Timeline',
                       style:
                           TraceText.screenTitle.copyWith(color: c.textPrimary)),
-                  Icon(Icons.calendar_today_outlined,
-                      size: 18, color: c.textSecondary),
+                  // Jumps to a month without stepping through every one
+                  // between.
+                  PressScale(
+                    onTap: () async {
+                      final today = DateTime.parse(ref.read(currentDayProvider));
+                      final picked = await showDayPicker(
+                        context,
+                        selected: month,
+                        today: today,
+                        title: 'Go to',
+                      );
+                      if (picked != null) {
+                        ref
+                            .read(visibleMonthProvider.notifier)
+                            .showMonthOf(picked);
+                      }
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.all(TraceSpace.xs),
+                      child: Icon(Icons.calendar_today_outlined,
+                          size: 18, color: c.textSecondary),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -98,77 +122,14 @@ class TimelineScreen extends ConsumerWidget {
     DateTime month,
     int direction,
   ) {
-    final c = context.traceColors;
     final notifier = ref.read(visibleMonthProvider.notifier);
-    // Paging forward past the current month would only ever show emptiness.
-    final canGoNext = !ref.read(visibleMonthProvider.notifier).isCurrent;
-    final label = DateFormat('MMMM yyyy').format(month);
-
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: context.gutter),
-      child: Row(
-        children: [
-          PressScale(
-            onTap: notifier.previous,
-            child: Padding(
-              padding: const EdgeInsets.all(TraceSpace.xs),
-              child: Icon(Icons.chevron_left_rounded,
-                  size: 20, color: c.textSecondary),
-            ),
-          ),
-          const SizedBox(width: TraceSpace.sm),
-          // The label rolls in from the side the month came from, and the
-          // right chevron glides to the new label's width rather than jumping.
-          AnimatedSize(
-            duration: TraceMotion.page,
-            curve: TraceMotion.emphasized,
-            alignment: Alignment.centerLeft,
-            child: AnimatedSwitcher(
-              duration: TraceMotion.page,
-              switchInCurve: TraceMotion.emphasizedDecelerate,
-              switchOutCurve: Curves.easeIn,
-              layoutBuilder: (current, previous) => Stack(
-                alignment: Alignment.centerLeft,
-                clipBehavior: Clip.none,
-                children: [...previous, ?current],
-              ),
-              transitionBuilder: (child, animation) {
-                final incoming = child.key == ValueKey(label);
-                // Arrivals come from the side paged towards; departures leave
-                // towards the other.
-                final side = (incoming ? direction : -direction).toDouble();
-                return FadeTransition(
-                  opacity: animation,
-                  child: SlideTransition(
-                    position: Tween(
-                      begin: Offset(0.35 * side, 0),
-                      end: Offset.zero,
-                    ).animate(animation),
-                    child: child,
-                  ),
-                );
-              },
-              child: Text(
-                label,
-                key: ValueKey(label),
-                style: TraceText.categoryLabel.copyWith(color: c.textPrimary),
-              ),
-            ),
-          ),
-          const SizedBox(width: TraceSpace.sm),
-          PressScale(
-            onTap: canGoNext ? notifier.next : null,
-            child: Padding(
-              padding: const EdgeInsets.all(TraceSpace.xs),
-              child: TweenAnimationBuilder<Color?>(
-                tween: ColorTween(end: canGoNext ? c.textSecondary : c.border),
-                duration: TraceMotion.base,
-                builder: (context, color, _) =>
-                    Icon(Icons.chevron_right_rounded, size: 20, color: color),
-              ),
-            ),
-          ),
-        ],
+      child: PeriodStepper(
+        label: DateFormat('MMMM yyyy').format(month),
+        direction: direction,
+        onPrevious: notifier.previous,
+        onNext: notifier.isCurrent ? null : notifier.next,
       ),
     );
   }

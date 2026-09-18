@@ -19,6 +19,50 @@ final insightsRangeProvider =
     NotifierProvider<InsightsRangeNotifier, InsightsRange>(
         InsightsRangeNotifier.new);
 
+/// The first day of the month or year Insights is showing.
+///
+/// Starts at the present and resets there whenever the range changes or the
+/// day turns — looking back is a visit, not a place the screen gets stuck.
+class InsightsPeriod extends Notifier<DateTime> {
+  /// Which way the last step went, for the stepper's roll: -1 back, +1 on.
+  int direction = 1;
+
+  InsightsRange get _range => ref.read(insightsRangeProvider);
+
+  @override
+  DateTime build() {
+    final range = ref.watch(insightsRangeProvider);
+    final today = DateTime.parse(ref.watch(currentDayProvider));
+    return _startOf(range, today);
+  }
+
+  static DateTime _startOf(InsightsRange range, DateTime day) =>
+      switch (range) {
+        InsightsRange.month => DateTime(day.year, day.month),
+        InsightsRange.year => DateTime(day.year),
+      };
+
+  bool get isCurrent =>
+      state == _startOf(_range, DateTime.parse(ref.read(currentDayProvider)));
+
+  void previous() => _step(-1);
+
+  void next() {
+    if (!isCurrent) _step(1);
+  }
+
+  void _step(int by) {
+    direction = by;
+    state = switch (_range) {
+      InsightsRange.month => DateTime(state.year, state.month + by),
+      InsightsRange.year => DateTime(state.year + by),
+    };
+  }
+}
+
+final insightsPeriodProvider =
+    NotifierProvider<InsightsPeriod, DateTime>(InsightsPeriod.new);
+
 /// Everything Insights needs, computed once from one query.
 class InsightsData {
   const InsightsData({
@@ -55,17 +99,12 @@ class InsightsData {
 final insightsProvider = StreamProvider<InsightsData>((ref) {
   final range = ref.watch(insightsRangeProvider);
   final db = ref.watch(databaseProvider);
-  // Recomputes when the day turns, so the month and year roll over too.
-  ref.watch(currentDayProvider);
-  final now = DateTime.now();
+  final start = ref.watch(insightsPeriodProvider);
   final fmt = DateFormat('yyyy-MM-dd');
 
   final (DateTime from, DateTime to) = switch (range) {
-    InsightsRange.month => (
-        DateTime(now.year, now.month),
-        DateTime(now.year, now.month + 1, 0),
-      ),
-    InsightsRange.year => (DateTime(now.year), DateTime(now.year, 12, 31)),
+    InsightsRange.month => (start, DateTime(start.year, start.month + 1, 0)),
+    InsightsRange.year => (start, DateTime(start.year, 12, 31)),
   };
 
   final dayCount = to.difference(from).inDays + 1;

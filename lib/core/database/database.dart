@@ -79,6 +79,18 @@ class AppDatabase extends _$AppDatabase {
   Future<void> updateEntry(EntriesCompanion entry) =>
       (update(entries)..where((t) => t.id.equals(entry.id.value))).write(entry);
 
+  /// Clears an entry's tombstone.
+  Future<void> restoreEntry(String id) {
+    final now = DateTime.now().toUtc();
+    return (update(entries)..where((t) => t.id.equals(id))).write(
+      EntriesCompanion(
+        deletedAt: const Value(null),
+        updatedAt: Value(now),
+        dirty: const Value(true),
+      ),
+    );
+  }
+
   /// Tombstones an entry. Never issues a hard DELETE.
   Future<void> softDeleteEntry(String id) {
     final now = DateTime.now().toUtc();

@@ -1,4 +1,5 @@
 import '../../shared/models/category.dart';
+import 'day_grammar.dart';
 import 'duration_grammar.dart';
 import 'quantity_grammar.dart';
 
@@ -16,6 +17,7 @@ class ParsedEntry {
     this.quantityUnit,
     this.projectId,
     this.bookId,
+    this.day,
     this.matchedCategory = false,
   });
 
@@ -27,6 +29,10 @@ class ParsedEntry {
   final String? quantityUnit;
   final String? projectId;
   final String? bookId;
+
+  /// When it happened, if the sentence said — "yesterday", "on monday". Null
+  /// means it did not say, and the caller decides.
+  final DayMatch? day;
 
   /// False when the category fell back to a default rather than being
   /// recognised — the UI uses this to draw attention to the category field.
@@ -112,37 +118,57 @@ class EntryParser {
     // ends up inside the entry name.
     final durationMatch = DurationGrammar.find(raw);
     final quantityMatch = QuantityGrammar.find(raw);
+    final dayMatch = DayGrammar.find(raw);
 
     final spans = <({int start, int end})>[
       if (durationMatch != null)
         (start: durationMatch.start, end: durationMatch.end),
       if (quantityMatch != null)
         (start: quantityMatch.start, end: quantityMatch.end),
+      if (dayMatch != null) (start: dayMatch.start, end: dayMatch.end),
     ]..sort((a, b) => b.start.compareTo(a.start));
 
     var remainder = raw;
+    var floor = raw.length;
     for (final s in spans) {
+      // Right to left, so earlier offsets stay valid. An overlapping span was
+      // already cut by its neighbour.
+      if (s.end > floor) continue;
       remainder = remainder.replaceRange(s.start, s.end, ' ');
+      floor = s.start;
     }
 
-    final (category, matched) = _category(lower, quantityMatch);
-    final project = _match(projects, lower);
-    final book = _match(books, lower);
+    final words = _words(raw);
+    final project = _match(projects, words);
+    final book = _match(books, words);
+    final (category, matched) =
+        _category(lower, quantityMatch, project: project, book: book);
+
+    // A project belongs to BUILD and a book to READ. Outside those, a name
+    // that happens to appear is just words in the sentence.
+    final ownProject = category == Category.build ? project : null;
+    final ownBook = category == Category.read ? book : null;
 
     return ParsedEntry(
       raw: raw,
       category: category,
-      title: _title(remainder, project, book),
+      title: _title(remainder, ownProject, ownBook),
       duration: durationMatch?.duration,
       quantity: quantityMatch?.value,
       quantityUnit: quantityMatch?.unit,
-      projectId: category == Category.build ? project?.id : null,
-      bookId: category == Category.read ? book?.id : null,
+      projectId: ownProject?.id,
+      bookId: ownBook?.id,
+      day: dayMatch,
       matchedCategory: matched,
     );
   }
 
-  (Category, bool) _category(String lower, QuantityMatch? quantity) {
+  (Category, bool) _category(
+    String lower,
+    QuantityMatch? quantity, {
+    NamedRef? project,
+    NamedRef? book,
+  }) {
     // "27 pages" is decisive on its own — no verb needed.
     if (quantity?.unit == 'pages') return (Category.read, true);
 
@@ -163,27 +189,51 @@ class EntryParser {
       }
     }
 
-    return (best, bestScore > 0);
+    if (bestScore > 0) return (best, true);
+
+    // No verb, but a name the user gave a project or a book is as good as one:
+    // "2h on TRACE" is building, "Atomic Habits 20m" is reading.
+    if (project != null) return (Category.build, true);
+    if (book != null) return (Category.read, true);
+    return (best, false);
   }
 
-  NamedRef? _match(List<NamedRef> refs, String lower) {
-    final squashed = lower.replaceAll(RegExp(r'[^a-z0-9]'), '');
+  static final _separators = RegExp(r'[^\p{L}\p{N}]+', unicode: true);
+
+  static List<String> _words(String s) =>
+      s.toLowerCase().split(_separators).where((w) => w.isNotEmpty).toList();
+
+  /// The ref whose name appears in [words] as whole words.
+  ///
+  /// Spacing and punctuation are ignored — "pds express", "PDS-Express" and
+  /// "pdsexpress" all find PDS Express — but a name never matches inside a
+  /// word, so a project called "Art" is not found in "started".
+  NamedRef? _match(List<NamedRef> refs, List<String> words) {
     NamedRef? best;
     var bestLen = 0;
 
     for (final ref in refs) {
-      final name = ref.name.toLowerCase();
-      final refSquashed = name.replaceAll(RegExp(r'[^a-z0-9]'), '');
-      if (refSquashed.isEmpty) continue;
-
-      final hit = lower.contains(name) || squashed.contains(refSquashed);
+      final target = _words(ref.name).join();
       // Longest match wins, so "TRACE CLI" beats "TRACE".
-      if (hit && refSquashed.length > bestLen) {
+      if (target.isEmpty || target.length <= bestLen) continue;
+      if (_runOf(words, target)) {
         best = ref;
-        bestLen = refSquashed.length;
+        bestLen = target.length;
       }
     }
     return best;
+  }
+
+  /// Whether some run of consecutive [words], joined, spells [target].
+  static bool _runOf(List<String> words, String target) {
+    for (var i = 0; i < words.length; i++) {
+      var joined = '';
+      for (var j = i; j < words.length && joined.length < target.length; j++) {
+        joined += words[j];
+        if (joined == target) return true;
+      }
+    }
+    return false;
   }
 
   String _title(String remainder, NamedRef? project, NamedRef? book) {
@@ -191,12 +241,29 @@ class EntryParser {
     if (project != null) return project.name;
     if (book != null) return book.name;
 
-    var text = remainder.replaceAll(RegExp(r'\s+'), ' ').trim();
-    text = text.replaceFirst(_leadingNoise, '');
+    final whole = remainder.replaceAll(RegExp(r'\s+'), ' ').trim();
+    var text = whole.replaceFirst(_leadingNoise, '');
     text = text.replaceFirst(_subjectLead, '');
-    text = text.replaceAll(RegExp(r'^[\s,\-–—]+|[\s,\-–—]+$'), '').trim();
+    text = _clean(text);
+
+    // "walked yesterday" leaves nothing once the verb is taken as noise. The
+    // verb is then the best title there is — better than the raw sentence
+    // with its "yesterday" still in it.
+    if (text.isEmpty) text = _clean(whole);
 
     if (text.isEmpty) return '';
     return text[0].toUpperCase() + text.substring(1);
   }
+
+  /// Trims stray punctuation, and connectives stranded at the end once a span
+  /// is cut — "durable objects for", from "durable objects for 40m".
+  static String _clean(String s) => s
+      .replaceFirst(_trailingLead, '')
+      .replaceAll(RegExp(r'^[\s,\-–—]+|[\s,\-–—]+$'), '')
+      .trim();
+
+  static final _trailingLead = RegExp(
+    r'(?:(?:^|\s+)(?:for|on|of|about|through|into|at|in|to|the))+\s*$',
+    caseSensitive: false,
+  );
 }

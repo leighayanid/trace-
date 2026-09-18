@@ -7,7 +7,9 @@ import '../../core/parser/duration_grammar.dart';
 import '../../core/parser/quantity_grammar.dart';
 import '../../shared/models/category.dart';
 import '../../shared/widgets/category_glyph.dart';
+import '../../shared/widgets/day_picker.dart';
 import '../../shared/widgets/mono_duration.dart';
+import '../../shared/widgets/picker_sheet.dart';
 import '../../shared/widgets/press_scale.dart';
 import '../../shared/widgets/reveal.dart';
 import '../../shared/widgets/save_sweep.dart';
@@ -39,6 +41,8 @@ class _AddEntryScreenState extends ConsumerState<AddEntryScreen> {
   late String? _quantityUnit = widget.draft.quantityUnit;
   late String? _projectId = widget.draft.projectId;
   late String? _bookId = widget.draft.bookId;
+  late DateTime _date =
+      widget.draft.date ?? DateTime.parse(ref.read(currentDayProvider));
   // Opens with the entry's note when editing — an empty box would read as a
   // note that was never written, and saving it would erase the real one.
   late final _noteController =
@@ -65,6 +69,7 @@ class _AddEntryScreenState extends ConsumerState<AddEntryScreen> {
       quantityUnit: _quantityUnit,
       projectId: _projectId,
       bookId: _bookId,
+      date: _date,
     );
 
     if (widget.entryId != null) {
@@ -124,13 +129,23 @@ class _AddEntryScreenState extends ConsumerState<AddEntryScreen> {
                       const SizedBox(height: TraceSpace.xl),
                       _labelled(
                         context,
+                        'Day',
+                        _tappableRow(
+                          context,
+                          dayLabel(_date, _today),
+                          onTap: _pickDay,
+                        ),
+                      ).reveal(2),
+                      const SizedBox(height: TraceSpace.xl),
+                      _labelled(
+                        context,
                         'Title',
                         _TextRow(
                           value: _title,
                           hint: 'What was it?',
                           onChanged: (v) => setState(() => _title = v),
                         ),
-                      ).reveal(2),
+                      ).reveal(3),
                       // Project belongs to BUILD and Book to READ. Switching
                       // category folds the field open or shut, so the form
                       // below moves rather than jumps.
@@ -177,7 +192,7 @@ class _AddEntryScreenState extends ConsumerState<AddEntryScreen> {
                             ),
                           _ => const SizedBox(key: ValueKey('no-link')),
                         },
-                      ).reveal(3),
+                      ).reveal(4),
                       const SizedBox(height: TraceSpace.xl),
                       _labelled(
                         context,
@@ -192,7 +207,7 @@ class _AddEntryScreenState extends ConsumerState<AddEntryScreen> {
                           mono: _duration != null,
                           onTap: _pickDuration,
                         ),
-                      ).reveal(4),
+                      ).reveal(5),
                       const SizedBox(height: TraceSpace.xl),
                       _labelled(
                         context,
@@ -207,10 +222,10 @@ class _AddEntryScreenState extends ConsumerState<AddEntryScreen> {
                           mono: _quantity != null,
                           onTap: _pickQuantity,
                         ),
-                      ).reveal(5),
+                      ).reveal(6),
                       const SizedBox(height: TraceSpace.xl),
                       _labelled(context, 'Note (optional)', _noteBox(context))
-                          .reveal(6),
+                          .reveal(7),
                       // Proof is deliberately absent in Phase 1. Git and
                       // screenshot capture need real integrations, and a row
                       // that does nothing is worse than no row.
@@ -382,11 +397,11 @@ class _AddEntryScreenState extends ConsumerState<AddEntryScreen> {
   Future<void> _pickCategory(BuildContext context) async {
     final picked = await showTraceSheet<Category>(
       context: context,
-      builder: (context) => _PickerSheet(
+      builder: (context) => PickerSheet(
         title: 'Category',
         children: [
           for (final cat in Category.values)
-            _PickerRow(
+            PickerRow(
               leading: CategoryGlyph(category: cat, size: 28),
               label: cat.title,
               selected: cat == _category,
@@ -398,6 +413,14 @@ class _AddEntryScreenState extends ConsumerState<AddEntryScreen> {
     if (picked != null) setState(() => _category = picked);
   }
 
+  DateTime get _today => DateTime.parse(ref.read(currentDayProvider));
+
+  Future<void> _pickDay() async {
+    final picked =
+        await showDayPicker(context, selected: _date, today: _today);
+    if (mounted && picked != null) setState(() => _date = picked);
+  }
+
   // Pickers return a record, so "chose None" (`(id: null)`) and "dismissed
   // the sheet" (null) stay different answers. A bare `String?` made a swipe
   // down unlink the project.
@@ -406,16 +429,16 @@ class _AddEntryScreenState extends ConsumerState<AddEntryScreen> {
     final projects = ref.read(projectsProvider).value ?? const [];
     final picked = await showTraceSheet<({String? id})>(
       context: context,
-      builder: (context) => _PickerSheet(
+      builder: (context) => PickerSheet(
         title: 'Project',
         children: [
-          _PickerRow(
+          PickerRow(
             label: 'None',
             selected: _projectId == null,
             onTap: () => Navigator.of(context).pop((id: null)),
           ),
           for (final p in projects)
-            _PickerRow(
+            PickerRow(
               label: p.name,
               selected: p.id == _projectId,
               onTap: () => Navigator.of(context).pop((id: p.id)),
@@ -430,16 +453,16 @@ class _AddEntryScreenState extends ConsumerState<AddEntryScreen> {
     final books = ref.read(booksProvider).value ?? const [];
     final picked = await showTraceSheet<({String? id})>(
       context: context,
-      builder: (context) => _PickerSheet(
+      builder: (context) => PickerSheet(
         title: 'Book',
         children: [
-          _PickerRow(
+          PickerRow(
             label: 'None',
             selected: _bookId == null,
             onTap: () => Navigator.of(context).pop((id: null)),
           ),
           for (final b in books)
-            _PickerRow(
+            PickerRow(
               label: b.title,
               selected: b.id == _bookId,
               onTap: () => Navigator.of(context).pop((id: b.id)),
@@ -506,7 +529,7 @@ class _AddEntryScreenState extends ConsumerState<AddEntryScreen> {
           padding: EdgeInsets.only(
             bottom: MediaQuery.viewInsetsOf(context).bottom,
           ),
-          child: _PickerSheet(
+          child: PickerSheet(
             title: title,
             children: [
               Padding(
@@ -538,7 +561,7 @@ class _AddEntryScreenState extends ConsumerState<AddEntryScreen> {
                   },
                 ),
               ),
-              _PickerRow(
+              PickerRow(
                 label: 'None',
                 onTap: () => Navigator.of(context).pop((value: null)),
               ),
@@ -584,91 +607,6 @@ class _TextRow extends StatelessWidget {
           border: InputBorder.none,
           hintText: hint,
           hintStyle: TraceText.body.copyWith(color: c.textSecondary),
-        ),
-      ),
-    );
-  }
-}
-
-class _PickerSheet extends StatelessWidget {
-  const _PickerSheet({required this.title, required this.children});
-
-  final String title;
-  final List<Widget> children;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.traceColors;
-    return Container(
-      decoration: BoxDecoration(
-        color: c.bg,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-        border: Border(top: BorderSide(color: c.border)),
-      ),
-      child: SafeArea(
-        top: false,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                TraceSpace.gutter,
-                TraceSpace.xl,
-                TraceSpace.gutter,
-                TraceSpace.md,
-              ),
-              child: Text(
-                title.toUpperCase(),
-                style: TraceText.sectionLabel.copyWith(color: c.textSecondary),
-              ),
-            ),
-            ...children,
-            const SizedBox(height: TraceSpace.md),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _PickerRow extends StatelessWidget {
-  const _PickerRow({
-    required this.label,
-    required this.onTap,
-    this.leading,
-    this.selected = false,
-  });
-
-  final String label;
-  final VoidCallback onTap;
-  final Widget? leading;
-  final bool selected;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.traceColors;
-    return PressScale(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: TraceSpace.gutter,
-          vertical: TraceSpace.md,
-        ),
-        child: Row(
-          children: [
-            if (leading != null) ...[
-              leading!,
-              const SizedBox(width: TraceSpace.md),
-            ],
-            Expanded(
-              child: Text(
-                label,
-                style: TraceText.body.copyWith(color: c.textPrimary),
-              ),
-            ),
-            if (selected) Icon(Icons.check_rounded, size: 18, color: c.navy),
-          ],
         ),
       ),
     );

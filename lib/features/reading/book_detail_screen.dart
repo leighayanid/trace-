@@ -13,6 +13,7 @@ import '../../shared/widgets/section_label.dart';
 import '../../shared/widgets/trace_button.dart';
 import '../notes/note_providers.dart';
 import 'log_reading_sheet.dart';
+import 'book_notes_screen.dart';
 import 'book_repository.dart';
 import 'reading_providers.dart';
 
@@ -237,7 +238,16 @@ class BookDetailScreen extends ConsumerWidget {
                 const SizedBox(height: TraceSpace.md),
                 TraceButton.outlined(
                   notes.isEmpty ? 'No notes yet' : 'View ${notes.length} notes',
-                  onPressed: notes.isEmpty ? null : () {},
+                  onPressed: notes.isEmpty
+                      ? null
+                      : () => Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) => BookNotesScreen(
+                                bookId: bookId,
+                                title: book.title,
+                              ),
+                            ),
+                          ),
                 ).reveal(8, key: const ValueKey('notes')),
               ],
             ),

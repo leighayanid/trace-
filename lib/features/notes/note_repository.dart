@@ -47,6 +47,19 @@ class NoteRepository {
     );
   }
 
+  /// Tombstones a note, or clears the tombstone to undo that.
+  Future<void> setDeleted(String id, {required bool deleted}) {
+    final now = DateTime.now().toUtc();
+    return _db.updateNote(
+      NotesCompanion(
+        id: Value(id),
+        deletedAt: Value(deleted ? now : null),
+        updatedAt: Value(now),
+        dirty: const Value(true),
+      ),
+    );
+  }
+
   /// A free note attached to a book — used for reading thoughts and quotes.
   Future<void> addBookNote(String bookId, String body,
       {String kind = 'thought'}) async {

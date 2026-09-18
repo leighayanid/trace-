@@ -584,8 +584,8 @@ be `RepaintBoundary`-wrapped so their animation does not repaint the scroll view
 >
 > - **The JSON export is the sync wire format.** It reuses `RowMappers`, so an
 >   archive can be read back through the same `*FromJson` constructors — a test
->   proves the round trip. There is no import screen yet. The format makes one
->   cheap to add when you want it.
+>   proves the round trip. Import (Data screen, 2026-09-19) reads it back as a
+>   merge judged row by row like sync, so an old backup cannot undo newer work.
 > - **Delete-all is the only hard DELETE in the app.** Everywhere else a delete
 >   is a tombstone. When signed in, it tombstones everything, pushes, and only
 >   then erases locally. If the push fails, the rows stay as hidden tombstones
@@ -668,6 +668,19 @@ be `RepaintBoundary`-wrapped so their animation does not repaint the scroll view
 > - The unused 500-entry `watchTimeline` is removed. The Timeline was never
 >   capped — it pages by month.
 >
+> **Capture and history, 2026-09-19.**
+> - Entries can belong to any past day. The parser reads "yesterday", "last
+>   night", "3 days ago", "on monday"; the form has a Day row; tapping the date
+>   on Today views another day, and Quick Add from there logs to it. The
+>   Timeline's calendar icon jumps to a month.
+> - Names match as whole words ("Art" is not in "started"), a known project or
+>   book name alone sets the category, and a name outside its category is not
+>   used as the title. Trailing connectives no longer end up in titles.
+> - Deleting an entry, session or note shows a quiet Undo.
+> - Insights steps back through months and years, with the Timeline's stepper
+>   (now the shared `PeriodStepper`).
+> - "View all sessions" and "View notes" open real screens.
+>
 > Known gap: `Conflict.clampToServer` is tested but **unwired**. It needs a real
 > server clock, and PostgREST does not surface the response `Date` header through
 > the Dart package. Until then a device with a badly wrong clock can win every
@@ -684,8 +697,6 @@ be `RepaintBoundary`-wrapped so their animation does not repaint the scroll view
 >   neither exists yet, and a broken image frame is worse than an initial on navy.
 > - **Category colours in the donut are one navy stepped through four opacities**, not four
 >   hues — the brief rules out bright per-category colour.
-> - **"View all sessions" and "View notes" are inert.** They are visible because the counts they
->   report are real, but the destination screens are Phase 3+.
 >
 > ### Known cleanups
 >

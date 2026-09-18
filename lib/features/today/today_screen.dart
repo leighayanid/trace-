@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../app/theme/theme.dart';
 import '../../core/database/database.dart';
 import '../../core/parser/quantity_grammar.dart';
+import '../../shared/widgets/day_picker.dart';
 import '../../shared/widgets/entry_row.dart';
 import '../../shared/widgets/mono_duration.dart';
 import '../../shared/widgets/press_scale.dart';
@@ -12,6 +13,7 @@ import '../../shared/widgets/progress_track.dart';
 import '../../shared/widgets/reveal.dart';
 import '../../shared/widgets/section_label.dart';
 import '../../shared/widgets/trace_button.dart';
+import '../../shared/widgets/undo_bar.dart';
 import '../entries/add_entry_screen.dart';
 import '../entries/entry_draft.dart';
 import '../entries/entry_providers.dart';
@@ -34,6 +36,8 @@ class TodayScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.traceColors;
     final now = DateTime.now();
+    final today = DateTime.parse(ref.watch(currentDayProvider));
+    final day = DateTime.parse(ref.watch(selectedDateProvider));
     final entriesAsync = ref.watch(todayEntriesProvider);
     final oneLine = ref.watch(oneLineProvider).value;
     final presence = ref.watch(presenceProvider);
@@ -53,11 +57,13 @@ class TodayScreen extends ConsumerWidget {
               TraceSpace.xxxl,
             ),
             children: [
-              _header(context, now).reveal(0),
+              _header(context, ref, day, today).reveal(0),
               const SizedBox(height: TraceSpace.xxl),
               _greetingBlock(context, now),
               const SizedBox(height: TraceSpace.section),
-              const SectionLabel('Today').reveal(3),
+              // Names the day on screen, so a day browsed back to is never
+              // mistaken for today.
+              SectionLabel(dayLabel(day, today)).reveal(3),
               const SizedBox(height: TraceSpace.xs),
               // One child, however many entries: the fixed sections below keep
               // their slots when an entry is added, so they are never remounted
@@ -96,23 +102,43 @@ class TodayScreen extends ConsumerWidget {
   /// When the presence bar starts filling: once its section has faded in.
   static const _presenceFill = Duration(milliseconds: 180 + 55 * 9 + 160);
 
-  Widget _header(BuildContext context, DateTime now) {
+  /// The date doubles as the way to another day: tap it to look back at, or
+  /// fill in, a day already gone.
+  Widget _header(
+    BuildContext context,
+    WidgetRef ref,
+    DateTime day,
+    DateTime today,
+  ) {
     final c = context.traceColors;
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text('TRACE',
             style: TraceText.wordmarkSmall.copyWith(color: c.textPrimary)),
-        Row(
-          children: [
-            Text(
-              DateFormat('EEE, MMM d').format(now),
-              style: TraceText.rowSubtitle.copyWith(color: c.textSecondary),
+        PressScale(
+          onTap: () async {
+            final picked =
+                await showDayPicker(context, selected: day, today: today);
+            if (picked != null) {
+              ref.read(selectedDateProvider.notifier).select(dayKey(picked));
+            }
+          },
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: TraceSpace.xs),
+            child: Row(
+              children: [
+                Text(
+                  DateFormat('EEE, MMM d').format(day),
+                  style:
+                      TraceText.rowSubtitle.copyWith(color: c.textSecondary),
+                ),
+                const SizedBox(width: TraceSpace.sm),
+                Icon(Icons.calendar_today_outlined,
+                    size: 15, color: c.textSecondary),
+              ],
             ),
-            const SizedBox(width: TraceSpace.sm),
-            Icon(Icons.calendar_today_outlined,
-                size: 15, color: c.textSecondary),
-          ],
+          ),
         ),
       ],
     );
@@ -154,8 +180,16 @@ class TodayScreen extends ConsumerWidget {
                 key: ValueKey(entries[i].id),
                 direction: DismissDirection.endToStart,
                 background: _deleteBackground(context),
-                onDismissed: (_) =>
-                    ref.read(entryRepositoryProvider).delete(entries[i].id),
+                onDismissed: (_) {
+                  final repo = ref.read(entryRepositoryProvider);
+                  final id = entries[i].id;
+                  repo.delete(id);
+                  showUndo(
+                    context,
+                    message: 'Entry deleted',
+                    onUndo: () => repo.restore(id),
+                  );
+                },
                 child: EntryRow(
                   category: entries[i].categoryEnum,
                   title: entries[i].title,

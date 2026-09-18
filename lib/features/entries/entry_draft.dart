@@ -17,10 +17,20 @@ class EntryDraft {
     this.quantityUnit,
     this.projectId,
     this.bookId,
+    this.date,
   });
 
   /// What the parser proposed. The parser suggests; the form decides.
-  factory EntryDraft.fromParsed(ParsedEntry p) => EntryDraft(
+  ///
+  /// The day is the one the sentence named ("yesterday"), resolved against
+  /// [today]; failing that [day], the day the user was looking at; failing
+  /// that, null — today, whenever it is saved.
+  factory EntryDraft.fromParsed(
+    ParsedEntry p, {
+    required DateTime today,
+    DateTime? day,
+  }) =>
+      EntryDraft(
         category: p.category,
         title: p.title.isEmpty ? p.raw : p.title,
         duration: p.duration,
@@ -28,6 +38,7 @@ class EntryDraft {
         quantityUnit: p.quantityUnit,
         projectId: p.projectId,
         bookId: p.bookId,
+        date: p.day?.resolve(today) ?? day,
       );
 
   factory EntryDraft.fromEntry(Entry e) => EntryDraft(
@@ -41,6 +52,7 @@ class EntryDraft {
         quantityUnit: e.quantityUnit,
         projectId: e.projectId,
         bookId: e.bookId,
+        date: DateTime.parse(e.date),
       );
 
   final Category category;
@@ -51,4 +63,7 @@ class EntryDraft {
   final String? quantityUnit;
   final String? projectId;
   final String? bookId;
+
+  /// The day it belongs to, as local midnight. Null means today.
+  final DateTime? date;
 }

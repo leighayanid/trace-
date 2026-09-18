@@ -23,7 +23,7 @@ class EntryRepository {
   Future<Entry?> find(String id) => _db.findEntry(id);
 
   /// Persists a new entry. Returns its id.
-  Future<String> create(EntryDraft draft, {DateTime? on}) async {
+  Future<String> create(EntryDraft draft) async {
     final now = DateTime.now().toUtc();
     final id = _uuid.v7();
 
@@ -32,7 +32,7 @@ class EntryRepository {
         id: id,
         category: draft.category.name,
         title: draft.title,
-        date: dayKey(on ?? DateTime.now()),
+        date: dayKey(draft.date ?? DateTime.now()),
         createdAt: now,
         updatedAt: now,
         description: Value(_text(draft.description)),
@@ -57,6 +57,11 @@ class EntryRepository {
         id: Value(id),
         category: Value(draft.category.name),
         title: Value(draft.title),
+        // A draft without a day keeps the entry's own; it never means "move to
+        // today".
+        date: draft.date == null
+            ? const Value.absent()
+            : Value(dayKey(draft.date!)),
         description: Value(_text(draft.description)),
         durationSecs: Value(draft.duration?.inSeconds),
         quantity: Value(draft.quantity),
@@ -89,6 +94,13 @@ class EntryRepository {
 
   /// Tombstone, not a hard delete.
   Future<void> delete(String id) => _db.softDeleteEntry(id);
+
+  /// Undoes [delete]. The restore is a fresh edit, so it also wins over a
+  /// tombstone that already reached the server.
+  Future<void> restore(String id) async {
+    await _db.restoreEntry(id);
+    await _settle((await _db.findEntry(id))?.bookId);
+  }
 }
 
 /// Convenience view over a row for the UI layer.

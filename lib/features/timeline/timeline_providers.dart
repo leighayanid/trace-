@@ -36,6 +36,14 @@ class VisibleMonth extends Notifier<DateTime> {
     state = DateTime(state.year, state.month + 1);
   }
 
+  /// Shows the month [day] falls in, arriving from the side it lies on.
+  void showMonthOf(DateTime day) {
+    final month = DateTime(day.year, day.month);
+    if (month == state) return;
+    ref.read(monthDirectionProvider.notifier).set(month.isBefore(state) ? -1 : 1);
+    state = month;
+  }
+
   /// True when [state] is the current calendar month — used to stop the user
   /// paging into empty future months.
   bool get isCurrent {

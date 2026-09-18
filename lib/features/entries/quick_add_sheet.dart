@@ -8,6 +8,7 @@ import '../../app/theme/theme.dart';
 import '../../core/parser/entry_parser.dart';
 import '../../core/parser/quantity_grammar.dart';
 import '../../shared/widgets/mono_duration.dart';
+import '../../shared/widgets/day_picker.dart';
 import '../../shared/widgets/press_scale.dart';
 import '../../shared/widgets/reveal.dart';
 import '../../shared/widgets/save_sweep.dart';
@@ -23,7 +24,7 @@ class QuickAddSheet extends ConsumerStatefulWidget {
   const QuickAddSheet({super.key, required this.onEditDetails});
 
   /// Opens the full Add Entry form with the parsed result.
-  final void Function(ParsedEntry parsed) onEditDetails;
+  final void Function(EntryDraft draft) onEditDetails;
 
   @override
   ConsumerState<QuickAddSheet> createState() => _QuickAddSheetState();
@@ -79,6 +80,16 @@ class _QuickAddSheetState extends ConsumerState<QuickAddSheet> {
 
   void _back() => setState(() => _parsed = null);
 
+  DateTime get _today => DateTime.parse(ref.read(currentDayProvider));
+
+  /// "yesterday" in the sentence wins; otherwise the entry goes to the day
+  /// Today is showing, so browsing back to Tuesday and adding logs Tuesday.
+  EntryDraft _draftOf(ParsedEntry p) => EntryDraft.fromParsed(
+        p,
+        today: _today,
+        day: DateTime.parse(ref.read(selectedDateProvider)),
+      );
+
   Future<void> _save() async {
     final parsed = _parsed;
     if (parsed == null || _saving) return;
@@ -87,7 +98,7 @@ class _QuickAddSheetState extends ConsumerState<QuickAddSheet> {
     // The sweep is the acknowledgement: let it finish crossing before the
     // sheet leaves, however quickly the write returns.
     await Future.wait([
-      ref.read(entryRepositoryProvider).create(EntryDraft.fromParsed(parsed)),
+      ref.read(entryRepositoryProvider).create(_draftOf(parsed)),
       Future<void>.delayed(TraceMotion.base),
     ]);
     if (!mounted) return;
@@ -399,6 +410,15 @@ class _QuickAddSheetState extends ConsumerState<QuickAddSheet> {
               'No duration',
               style: TraceText.rowSubtitle.copyWith(color: _muted),
             ).reveal(2, delay: start),
+          // Said only when it is not today — the usual case needs no line.
+          if (_draftOf(p).date case final day?
+              when dayLabel(day, _today) != 'Today') ...[
+            const SizedBox(height: TraceSpace.sm),
+            Text(
+              dayLabel(day, _today),
+              style: TraceText.rowSubtitle.copyWith(color: _white),
+            ).reveal(2, delay: start),
+          ],
           if (!p.matchedCategory) ...[
             const SizedBox(height: TraceSpace.lg),
             Text(
@@ -419,7 +439,7 @@ class _QuickAddSheetState extends ConsumerState<QuickAddSheet> {
               'Edit details',
               onPressed: () {
                 Navigator.of(context).pop();
-                widget.onEditDetails(p);
+                widget.onEditDetails(_draftOf(p));
               },
             ),
           ).reveal(5, delay: start),

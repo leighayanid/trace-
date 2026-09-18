@@ -1,6 +1,7 @@
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:trace/core/database/database.dart';
+import 'package:trace/core/parser/entry_parser.dart';
 import 'package:trace/features/entries/entry_draft.dart';
 import 'package:trace/features/entries/entry_repository.dart';
 import 'package:trace/features/notes/note_repository.dart';
@@ -91,6 +92,74 @@ void main() {
     expect(draft.description, 'Small wins.');
     expect(draft.quantity, 27);
     expect(draft.quantityUnit, 'pages');
+  });
+
+  test('a draft carries the day the sentence named', () async {
+    final repo = EntryRepository(db);
+    final today = DateTime(2026, 9, 18);
+    final parsed = const EntryParser().parse('walked for 30m yesterday');
+
+    final id = await repo.create(EntryDraft.fromParsed(parsed, today: today));
+
+    expect((await repo.find(id))!.date, '2026-09-17');
+  });
+
+  test('without a named day, a draft goes to the day being viewed', () async {
+    final parsed = const EntryParser().parse('walked for 30m');
+    final draft = EntryDraft.fromParsed(
+      parsed,
+      today: DateTime(2026, 9, 18),
+      day: DateTime(2026, 9, 15),
+    );
+    expect(draft.date, DateTime(2026, 9, 15));
+  });
+
+  test('saving a draft with a day moves the entry; without one keeps it',
+      () async {
+    final repo = EntryRepository(db);
+    final id = await repo.create(build());
+    final original = (await repo.find(id))!.date;
+
+    await repo.save(id, build());
+    expect((await repo.find(id))!.date, original);
+
+    final moved = EntryDraft.fromEntry((await repo.find(id))!);
+    await repo.save(
+      id,
+      EntryDraft(
+        category: moved.category,
+        title: moved.title,
+        date: DateTime(2026, 9, 1),
+      ),
+    );
+    expect((await repo.find(id))!.date, '2026-09-01');
+  });
+
+  test('a deleted entry can be restored, and the restore syncs', () async {
+    final repo = EntryRepository(db);
+    final id = await repo.create(build());
+    await db.markEntriesClean([id]);
+
+    await repo.delete(id);
+    expect(await db.allEntries(), isEmpty);
+
+    await repo.restore(id);
+    final row = (await repo.find(id))!;
+    expect(row.deletedAt, isNull);
+    expect(row.dirty, isTrue);
+    expect(await db.allEntries(), hasLength(1));
+  });
+
+  test('a deleted note can be restored', () async {
+    final notes = NoteRepository(db);
+    await notes.addBookNote('b1', 'Small wins.');
+    final id = (await db.allNotes()).single.id;
+
+    await notes.setDeleted(id, deleted: true);
+    expect(await db.allNotes(), isEmpty);
+
+    await notes.setDeleted(id, deleted: false);
+    expect((await db.allNotes()).single.body, 'Small wins.');
   });
 
   test('a book edit keeps the fields it does not touch', () async {

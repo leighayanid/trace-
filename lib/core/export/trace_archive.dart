@@ -48,6 +48,50 @@ abstract final class TraceArchive {
   static String encodeJson(Map<String, dynamic> archive) =>
       const JsonEncoder.withIndent('  ').convert(archive);
 
+  /// Versions [parse] can read. Version 1 books also carried `current_page`;
+  /// it is ignored, since the bookmark is derived from the sessions that come
+  /// with it.
+  static const readableVersions = {1, 2};
+
+  /// Reads an archive back into its rows, table by table, in the sync wire
+  /// shape — ready for the `*FromJson` constructors.
+  ///
+  /// Throws a [FormatException] whose message can be shown as it is.
+  static ArchiveRows parse(String text) {
+    final Object? decoded;
+    try {
+      decoded = jsonDecode(text);
+    } on FormatException {
+      throw const FormatException("That file isn't a TRACE export.");
+    }
+    if (decoded is! Map<String, dynamic> ||
+        decoded['format'] != 'trace.archive') {
+      throw const FormatException("That file isn't a TRACE export.");
+    }
+    if (!readableVersions.contains(decoded['version'])) {
+      throw const FormatException(
+        'That export is from a newer version of TRACE. Update the app first.',
+      );
+    }
+
+    final archive = decoded;
+    List<Map<String, dynamic>> rows(String key) {
+      final list = archive[key];
+      if (list == null) return const [];
+      if (list is! List || list.any((r) => r is! Map<String, dynamic>)) {
+        throw const FormatException('That export is damaged.');
+      }
+      return list.cast<Map<String, dynamic>>();
+    }
+
+    return ArchiveRows(
+      entries: rows('entries'),
+      projects: rows('projects'),
+      books: rows('books'),
+      notes: rows('notes'),
+    );
+  }
+
   /// Entries as a spreadsheet, one row per entry, newest day first.
   ///
   /// Unlike the JSON archive this is for reading, not for restoring: ids are
@@ -133,4 +177,19 @@ abstract final class TraceArchive {
     if (!value.contains(RegExp(r'[",\r\n]'))) return value;
     return '"${value.replaceAll('"', '""')}"';
   }
+}
+
+/// An archive's rows, still as JSON maps.
+class ArchiveRows {
+  const ArchiveRows({
+    required this.entries,
+    required this.projects,
+    required this.books,
+    required this.notes,
+  });
+
+  final List<Map<String, dynamic>> entries;
+  final List<Map<String, dynamic>> projects;
+  final List<Map<String, dynamic>> books;
+  final List<Map<String, dynamic>> notes;
 }

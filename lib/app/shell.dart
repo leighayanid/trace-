@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../core/parser/entry_parser.dart';
 import '../features/entries/add_entry_screen.dart';
 import '../features/entries/entry_draft.dart';
 import '../features/entries/quick_add_sheet.dart';
@@ -102,11 +101,9 @@ class TraceShellState extends State<TraceShell> with TickerProviderStateMixin {
     }
   }
 
-  void _openDetails(ParsedEntry parsed) {
+  void _openDetails(EntryDraft draft) {
     Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => AddEntryScreen(draft: EntryDraft.fromParsed(parsed)),
-      ),
+      MaterialPageRoute<void>(builder: (_) => AddEntryScreen(draft: draft)),
     );
   }
 
