@@ -60,7 +60,6 @@ class _AddQuoteSheetState extends ConsumerState<AddQuoteSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final c = context.traceColors;
     return FormSheet(
       label: 'Add quote',
       heading: widget.book.title,
@@ -69,31 +68,22 @@ class _AddQuoteSheetState extends ConsumerState<AddQuoteSheet> {
       fields: [
         FieldBox(
           label: 'Quote',
-          child: TextField(
+          child: BareField(
             controller: _quote,
+            hint: 'The words, as they are on the page.',
             autofocus: true,
-            maxLines: 6,
             minLines: 3,
-            textCapitalization: TextCapitalization.sentences,
-            style: TraceText.quote.copyWith(color: c.textPrimary),
-            decoration: InputDecoration(
-              border: InputBorder.none,
-              hintText: 'The words, as they are on the page.',
-              hintStyle: TraceText.body.copyWith(color: c.textSecondary),
-            ),
+            maxLines: 6,
+            style: TraceText.quote,
           ),
         ),
         FieldBox(
           label: 'Page (optional)',
-          child: TextField(
+          child: BareField(
             controller: _page,
-            keyboardType: TextInputType.number,
-            style: TraceText.mono.copyWith(color: c.textPrimary, fontSize: 17),
-            decoration: InputDecoration(
-              border: InputBorder.none,
-              hintText: '42',
-              hintStyle: TraceText.mono.copyWith(color: c.textSecondary),
-            ),
+            hint: '42',
+            number: true,
+            style: TraceText.mono.copyWith(fontSize: 17),
             onSubmitted: (_) => _save(),
           ),
         ),

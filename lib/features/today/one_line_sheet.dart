@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../app/theme/theme.dart';
-import '../../shared/widgets/press_scale.dart';
+import '../../shared/widgets/day_picker.dart';
+import '../../shared/widgets/form_sheet.dart';
 import '../../shared/widgets/trace_sheet.dart';
 import '../entries/entry_providers.dart';
 import '../notes/note_providers.dart';
@@ -47,62 +47,27 @@ class _OneLineSheetState extends ConsumerState<OneLineSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final c = context.traceColors;
-    return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
-      child: Container(
-        decoration: BoxDecoration(
-          color: c.bg,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-          border: Border(top: BorderSide(color: c.border)),
+    final day = DateTime.parse(ref.read(selectedDateProvider));
+    final today = DateTime.parse(ref.read(currentDayProvider));
+    final name = dayLabel(day, today);
+    // "about today", "about yesterday", "about Monday" — the sheet names the
+    // day it is writing to, since Today can be showing another one.
+    final about = name == 'Today' || name == 'Yesterday'
+        ? name.toLowerCase()
+        : name;
+    return FormSheet(
+      label: 'One line',
+      onSave: _save,
+      fields: [
+        BareField(
+          controller: _controller,
+          hint: 'One line about $about.',
+          autofocus: true,
+          minLines: 1,
+          maxLines: 3,
+          onSubmitted: (_) => _save(),
         ),
-        child: SafeArea(
-          top: false,
-          child: Padding(
-            padding: const EdgeInsets.all(TraceSpace.gutter),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'ONE LINE',
-                  style:
-                      TraceText.sectionLabel.copyWith(color: c.textSecondary),
-                ),
-                const SizedBox(height: TraceSpace.lg),
-                TextField(
-                  controller: _controller,
-                  autofocus: true,
-                  maxLines: 3,
-                  minLines: 1,
-                  textCapitalization: TextCapitalization.sentences,
-                  style: TraceText.body.copyWith(color: c.textPrimary),
-                  decoration: InputDecoration(
-                    hintText: 'One line about today.',
-                    hintStyle: TraceText.body.copyWith(color: c.textSecondary),
-                    border: InputBorder.none,
-                  ),
-                  onSubmitted: (_) => _save(),
-                ),
-                const SizedBox(height: TraceSpace.lg),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: PressScale(
-                    onTap: _save,
-                    child: Padding(
-                      padding: const EdgeInsets.all(TraceSpace.sm),
-                      child: Text(
-                        'Save',
-                        style: TraceText.button.copyWith(color: c.navy),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
+      ],
     );
   }
 }

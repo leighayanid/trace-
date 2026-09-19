@@ -3,13 +3,20 @@ import 'package:trace/core/sync/data_api_client.dart';
 /// An in-memory stand-in for the Neon Data API that keeps the rules of
 /// migration 002: every write is stamped with the next `server_seq`, and an
 /// older `updated_at` never overwrites a newer one — the stored row is
-/// re-stamped instead, so it goes back out to every device.
+/// re-stamped instead, so it goes back out to every device. Migration 005's
+/// `server_now()` is [clock].
 class FakeServer implements DataApiClient {
   final _tables = <String, Map<String, Map<String, dynamic>>>{};
   var _seq = 0;
 
   /// Rows handed out by [pull], across all tables.
   var pulledRows = 0;
+
+  /// The server's clock. Null stands for a server without migration 005.
+  DateTime? Function() clock = () => DateTime.now().toUtc();
+
+  @override
+  Future<DateTime?> serverNow() async => clock();
 
   Map<String, Map<String, dynamic>> rows(String table) =>
       _tables.putIfAbsent(table, () => {});

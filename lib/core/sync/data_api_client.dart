@@ -85,9 +85,21 @@ class DataApiClient {
     );
   }
 
-  // Deliberately no serverTime(): the obvious implementation would return
-  // DateTime.now(), which is the *client* clock and therefore useless for
-  // clamping client skew. Conflict.clampToServer stays tested and unwired until
-  // there is a real server clock to read — PostgREST does not surface the
-  // response `Date` header through this package. See PLAN.md §5.
+  /// The server's clock, from `server_now()` (migration 005).
+  ///
+  /// Null when the function does not exist yet, so a server that has not had
+  /// 005 applied still syncs — only without skew clamping. Any other failure
+  /// is a real one and propagates. The client clock is never substituted: it
+  /// is the very thing being checked.
+  Future<DateTime?> serverNow() {
+    return _guarded(() async {
+      try {
+        final now = await _client.rpc<String>('server_now');
+        return DateTime.parse(now).toUtc();
+      } on PostgrestException catch (e) {
+        if (e.code == 'PGRST202') return null;
+        rethrow;
+      }
+    });
+  }
 }

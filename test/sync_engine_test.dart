@@ -180,4 +180,52 @@ void main() {
 
     expect((await phone.syncState())!.lastError, isNull);
   });
+
+  group('a device clock running ahead', () {
+    final serverTime = DateTime.utc(2026, 9, 19, 12);
+    final dayAhead = serverTime.add(const Duration(days: 1));
+
+    test('is clamped to within five minutes of the server', () async {
+      server.clock = () => serverTime;
+      await addEntry(phone, 'e1', dayAhead);
+
+      await sync(phoneSync);
+
+      final stored =
+          DateTime.parse(server.rows('entries')['e1']!['updated_at'] as String);
+      expect(stored, serverTime.add(const Duration(minutes: 5)));
+      // The phone takes the clamped time back on the same sync's pull.
+      expect((await phone.findEntry('e1'))!.updatedAt.toUtc(),
+          serverTime.add(const Duration(minutes: 5)));
+    });
+
+    test('cannot outvote a later edit made with a correct clock', () async {
+      server.clock = () => serverTime;
+      await addEntry(phone, 'e1', dayAhead, title: 'Walk');
+      await sync(phoneSync);
+      await sync(tabletSync);
+
+      // Ten minutes later, by the server's clock and the tablet's.
+      final later = serverTime.add(const Duration(minutes: 10));
+      server.clock = () => later;
+      await retitle(tablet, 'e1', 'Long walk', later);
+      await sync(tabletSync);
+      await sync(phoneSync);
+
+      expect(server.rows('entries')['e1']!['title'], 'Long walk');
+      expect((await phone.findEntry('e1'))!.title, 'Long walk');
+    });
+
+    test('a server without server_now() still syncs, unclamped', () async {
+      server.clock = () => null;
+      await addEntry(phone, 'e1', dayAhead);
+
+      await sync(phoneSync);
+
+      expect(
+        DateTime.parse(server.rows('entries')['e1']!['updated_at'] as String),
+        dayAhead,
+      );
+    });
+  });
 }

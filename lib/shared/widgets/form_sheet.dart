@@ -6,8 +6,10 @@ import 'press_scale.dart';
 /// A small form in a bottom sheet: a caps label, an optional heading, the
 /// fields, and Save.
 ///
-/// Lifts above the keyboard and scrolls if it has to, so a sheet never needs to
-/// think about either.
+/// Every sheet that creates or logs something is one of these, so they share a
+/// shape: lift above the keyboard, scroll if they have to, and end in the same
+/// quiet navy action. A field is any widget — usually a [FieldBox], but the one
+/// line on Today is deliberately bare.
 class FormSheet extends StatelessWidget {
   const FormSheet({
     super.key,
@@ -16,6 +18,7 @@ class FormSheet extends StatelessWidget {
     required this.fields,
     required this.onSave,
     this.saving = false,
+    this.saveLabel = 'Save',
   });
 
   /// `LOG READING` — what the sheet does.
@@ -27,6 +30,9 @@ class FormSheet extends StatelessWidget {
   final List<Widget> fields;
   final VoidCallback onSave;
   final bool saving;
+
+  /// What the action says — Save, Create, Add.
+  final String saveLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -69,7 +75,7 @@ class FormSheet extends StatelessWidget {
                     child: Padding(
                       padding: const EdgeInsets.all(TraceSpace.sm),
                       child: Text(
-                        saving ? 'Saving…' : 'Save',
+                        saving ? 'Saving…' : saveLabel,
                         style: TraceText.button.copyWith(color: c.navy),
                       ),
                     ),
@@ -84,11 +90,16 @@ class FormSheet extends StatelessWidget {
   }
 }
 
-/// A labelled, bordered box around one input.
+/// A bordered box around one input, with an optional label above it and an
+/// optional note below.
 class FieldBox extends StatelessWidget {
-  const FieldBox({super.key, required this.label, required this.child});
+  const FieldBox({super.key, this.label, this.note, required this.child});
 
-  final String label;
+  final String? label;
+
+  /// A line of explanation under the box.
+  final String? note;
+
   final Widget child;
 
   @override
@@ -97,9 +108,11 @@ class FieldBox extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label,
-            style: TraceText.rowSubtitle.copyWith(color: c.textSecondary)),
-        const SizedBox(height: TraceSpace.sm),
+        if (label != null) ...[
+          Text(label!,
+              style: TraceText.rowSubtitle.copyWith(color: c.textSecondary)),
+          const SizedBox(height: TraceSpace.sm),
+        ],
         Container(
           padding: const EdgeInsets.symmetric(
             horizontal: TraceSpace.md,
@@ -111,7 +124,68 @@ class FieldBox extends StatelessWidget {
           ),
           child: child,
         ),
+        if (note != null) ...[
+          const SizedBox(height: TraceSpace.sm),
+          Text(
+            note!,
+            style: TraceText.rowSubtitle
+                .copyWith(color: c.textSecondary, height: 1.5),
+          ),
+        ],
       ],
+    );
+  }
+}
+
+/// A text input with no chrome of its own — the [FieldBox] or the sheet around
+/// it supplies the frame. Numbers set in mono, like every number in TRACE.
+class BareField extends StatelessWidget {
+  const BareField({
+    super.key,
+    required this.controller,
+    required this.hint,
+    this.autofocus = false,
+    this.number = false,
+    this.minLines,
+    this.maxLines = 1,
+    this.style,
+    this.onSubmitted,
+  });
+
+  final TextEditingController controller;
+  final String hint;
+  final bool autofocus;
+  final bool number;
+  final int? minLines;
+  final int maxLines;
+
+  /// Overrides the text style: body, or mono for numbers.
+  final TextStyle? style;
+
+  final ValueChanged<String>? onSubmitted;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.traceColors;
+    final base = style ?? (number ? TraceText.mono : TraceText.body);
+    return TextField(
+      controller: controller,
+      autofocus: autofocus,
+      // Text keyboards keep their Done key even when the field wraps, so
+      // Enter saves rather than starting a second line.
+      keyboardType: number ? TextInputType.number : null,
+      textCapitalization:
+          number ? TextCapitalization.none : TextCapitalization.sentences,
+      minLines: minLines,
+      maxLines: maxLines,
+      style: base.copyWith(color: c.textPrimary),
+      decoration: InputDecoration(
+        border: InputBorder.none,
+        hintText: hint,
+        hintStyle: (number ? TraceText.mono : TraceText.body)
+            .copyWith(color: c.textSecondary),
+      ),
+      onSubmitted: onSubmitted,
     );
   }
 }

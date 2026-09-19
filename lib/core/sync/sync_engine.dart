@@ -58,7 +58,10 @@ class SyncEngine {
     if (_running) return const SyncRunning();
     _running = true;
     try {
-      await _pushAll();
+      // Read once per sync: the clamp only needs to be right to within the
+      // five-minute allowance, not to the millisecond.
+      final serverNow = await _api.serverNow();
+      await _pushAll(serverNow);
       await _pullAll();
 
       final now = DateTime.now().toUtc();
@@ -77,14 +80,16 @@ class SyncEngine {
 
   // ── Push ──────────────────────────────────────────────────────────────────
 
-  Future<void> _pushAll() async {
+  Future<void> _pushAll(DateTime? serverNow) async {
     await _push(
+      serverNow: serverNow,
       table: 'projects',
       rows: await _db.dirtyProjects(),
       toJson: RowMappers.projectToJson,
       clear: (ids) => _db.markProjectsClean(ids),
     );
     await _push(
+      serverNow: serverNow,
       table: 'books',
       rows: await _db.dirtyBooks(),
       toJson: RowMappers.bookToJson,
@@ -93,12 +98,14 @@ class SyncEngine {
     // Entries reference projects and books, so those go first — otherwise the
     // foreign keys would not yet exist on the server.
     await _push(
+      serverNow: serverNow,
       table: 'entries',
       rows: await _db.dirtyEntries(),
       toJson: RowMappers.entryToJson,
       clear: (ids) => _db.markEntriesClean(ids),
     );
     await _push(
+      serverNow: serverNow,
       table: 'notes',
       rows: await _db.dirtyNotes(),
       toJson: RowMappers.noteToJson,
@@ -107,6 +114,7 @@ class SyncEngine {
   }
 
   Future<void> _push<T>({
+    required DateTime? serverNow,
     required String table,
     required List<T> rows,
     required Map<String, dynamic> Function(T) toJson,
@@ -117,12 +125,29 @@ class SyncEngine {
         i,
         (i + _batchSize).clamp(0, rows.length),
       );
-      final payload = batch.map(toJson).toList();
+      final payload = [
+        for (final row in batch) _clamped(toJson(row), serverNow),
+      ];
       await _api.push(table: table, rows: payload);
       // Only cleared after the server has accepted them; a failure mid-way
       // leaves the rest dirty and they are retried next sync.
       await clear([for (final row in payload) row['id'] as String]);
     }
+  }
+
+  /// Pulls an `updated_at` from a device clock that runs ahead back to within
+  /// [Conflict.maxSkew] of the server's, so a phone set a day fast cannot win
+  /// every conflict for a day. The local row keeps its own time until the next
+  /// pull brings the server's copy back over it.
+  static Map<String, dynamic> _clamped(
+    Map<String, dynamic> json,
+    DateTime? serverNow,
+  ) {
+    if (serverNow == null) return json;
+    final at = DateTime.parse(json['updated_at'] as String).toUtc();
+    final clamped = Conflict.clampToServer(at, serverNow);
+    if (clamped == at) return json;
+    return {...json, 'updated_at': clamped.toIso8601String()};
   }
 
   // ── Pull ──────────────────────────────────────────────────────────────────

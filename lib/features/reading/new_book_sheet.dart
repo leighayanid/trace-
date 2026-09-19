@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../app/theme/theme.dart';
-import '../../shared/widgets/press_scale.dart';
+import '../../shared/widgets/form_sheet.dart';
 import '../../shared/widgets/trace_sheet.dart';
 import 'reading_providers.dart';
 
@@ -58,83 +57,26 @@ class _NewBookSheetState extends ConsumerState<NewBookSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final c = context.traceColors;
-    return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
-      child: Container(
-        decoration: BoxDecoration(
-          color: c.bg,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-          border: Border(top: BorderSide(color: c.border)),
+    return FormSheet(
+      label: 'New book',
+      saveLabel: 'Add',
+      saving: _saving,
+      onSave: _save,
+      fields: [
+        FieldBox(
+          child: BareField(controller: _title, hint: 'Title', autofocus: true),
         ),
-        child: SafeArea(
-          top: false,
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(TraceSpace.gutter),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('NEW BOOK',
-                    style: TraceText.sectionLabel
-                        .copyWith(color: c.textSecondary)),
-                const SizedBox(height: TraceSpace.xl),
-                _field(context, _title, 'Title', autofocus: true),
-                const SizedBox(height: TraceSpace.lg),
-                _field(context, _author, 'Author (optional)'),
-                const SizedBox(height: TraceSpace.lg),
-                _field(context, _pages, 'Total pages (optional)', number: true),
-                const SizedBox(height: TraceSpace.xl),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: PressScale(
-                    onTap: _save,
-                    child: Padding(
-                      padding: const EdgeInsets.all(TraceSpace.sm),
-                      child: Text(
-                        _saving ? 'Saving…' : 'Add',
-                        style: TraceText.button.copyWith(color: c.navy),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
+        FieldBox(
+          child: BareField(controller: _author, hint: 'Author (optional)'),
+        ),
+        FieldBox(
+          child: BareField(
+            controller: _pages,
+            hint: 'Total pages (optional)',
+            number: true,
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _field(
-    BuildContext context,
-    TextEditingController controller,
-    String hint, {
-    bool autofocus = false,
-    bool number = false,
-  }) {
-    final c = context.traceColors;
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: TraceSpace.md,
-        vertical: TraceSpace.xs,
-      ),
-      decoration: BoxDecoration(
-        border: Border.all(color: c.border),
-        borderRadius: BorderRadius.circular(TraceRadius.card),
-      ),
-      child: TextField(
-        controller: controller,
-        autofocus: autofocus,
-        keyboardType: number ? TextInputType.number : null,
-        style: (number ? TraceText.mono : TraceText.body)
-            .copyWith(color: c.textPrimary),
-        decoration: InputDecoration(
-          border: InputBorder.none,
-          hintText: hint,
-          hintStyle: TraceText.body.copyWith(color: c.textSecondary),
-        ),
-      ),
+      ],
     );
   }
 }

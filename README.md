@@ -37,8 +37,8 @@ One-time setup, in order:
    The Data API does not see new columns until you do.
 
    Upgrading an existing project, in this order:
-   1. Run `002` and `004`. Older builds keep working against both; newer
-      builds need them.
+   1. Run `002`, `004` and `005`. Older builds keep working against all
+      three; newer builds need `002` and `004`, and use `005` when present.
    2. Install the new build on every device.
    3. Run `003`. It drops `books.current_page`, which older builds still send,
       so it waits until none are left. Newer builds work with or without it.

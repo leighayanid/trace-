@@ -103,7 +103,7 @@ a small, well-understood surface — roughly:
 | `NeonAuthClient` | `http` calls to the Better Auth email sign-up / sign-in endpoints |
 | Token exchange | trades the session for the JWT the Data API validates |
 | `TokenStore` | persists tokens in `flutter_secure_storage` (Keychain / EncryptedSharedPreferences) |
-| Refresh guard | decodes `exp` with `jose`, refreshes ahead of expiry, single-flights concurrent refreshes |
+| Refresh guard | decodes `exp` from the JWT payload by hand (no signature check — the server verifies), refreshes ahead of expiry, single-flights concurrent refreshes |
 | Interceptor | injects `Authorization: Bearer <jwt>` into every `postgrest` request |
 
 Budget ~250 lines plus tests. **Exact endpoint paths and the session→JWT exchange must be read
@@ -129,8 +129,7 @@ dependencies:
   flutter: { sdk: flutter }
 
   # state
-  flutter_riverpod: ^3.4.3
-  riverpod_annotation: ^4.0.7
+  flutter_riverpod: ^3.4.3     # providers hand-written; no riverpod codegen
 
   # persistence (local source of truth)
   drift: ^2.35.0
@@ -144,26 +143,23 @@ dependencies:
   flutter_animate: ^4.5.2
   animations: ^3.0.0           # official Material motion: shared axis, fade-through
 
-  # serialisation
-  json_annotation: ^4.12.0
-
   # sync + auth (phase 4)
   postgrest: ^2.9.1            # speaks to the Neon Data API
   http: ^1.6.0                 # hand-rolled Neon Auth client
-  jose: ^0.3.5+2               # decode JWT `exp` for refresh-ahead
   connectivity_plus: ^7.3.1
   flutter_secure_storage: ^11.1.0
 
   # misc
   uuid: ^4.6.0
   intl: ^0.20.2
+  share_plus: ^13.3.0          # export through the share sheet
+  shared_preferences: ^2.5.5   # theme mode
+  file_selector: ^1.1.0        # pick an export to import
 
 dev_dependencies:
   flutter_test: { sdk: flutter }
   build_runner: ^2.15.1
   drift_dev: ^2.35.0
-  riverpod_generator: ^4.0.9
-  json_serializable: ^6.14.1
   flutter_lints: ^6.0.0
 ```
 
@@ -171,9 +167,9 @@ dev_dependencies:
 
 **1. No `riverpod_lint`, no `custom_lint`.** `riverpod_lint >=3.1.9` requires Dart `>=3.13.0`;
 every older version demands `freezed_annotation ^2.2.0`, and `custom_lint` on this SDK pins
-`analyzer ^8`, while `riverpod_generator 4.0.9` needs `analyzer >=13 <15`. The two cannot
-coexist here. **Codegen is unaffected** — `riverpod_generator` works fine. What is lost is the
-Riverpod-specific lint rules. `flutter_lints ^6.0.0` still applies. This is the real price of
+`analyzer ^8`, which conflicted with `riverpod_generator 4.0.9`'s `analyzer >=13 <15`. (The
+generator was later removed as unused — 2026-09-19 — but `riverpod_lint` still needs Dart
+`>=3.13`.) What is lost is the Riverpod-specific lint rules. `flutter_lints ^6.0.0` still applies. This is the real price of
 the decision, and it is a modest one.
 
 **2. `freezed` is dropped entirely** — and this is an improvement, not a concession. On this SDK
@@ -702,10 +698,14 @@ be `RepaintBoundary`-wrapped so their animation does not repaint the scroll view
 >   Entries only, no proofs, so nothing new syncs. store/listing.md updated:
 >   the default build now has one user-initiated network request.
 >
-> Known gap: `Conflict.clampToServer` is tested but **unwired**. It needs a real
-> server clock, and PostgREST does not surface the response `Date` header through
-> the Dart package. Until then a device with a badly wrong clock can win every
-> conflict.
+> **Cleanups, 2026-09-19 (migration 005).**
+> - Skew clamping is wired. `server_now()` (migration 005) gives the server's
+>   clock; before each push, any `updated_at` more than five minutes past it is
+>   clamped, so a phone set a day fast cannot win every conflict. A server
+>   without 005 syncs unclamped rather than failing.
+> - All five sheets use `FormSheet` + `FieldBox` + `BareField`.
+> - Removed unused packages: `riverpod_annotation`, `riverpod_generator`,
+>   `json_annotation`, `json_serializable`, `jose`. Drift is the only codegen.
 >
 > ### Deviations from the mockup, all deliberate
 >
@@ -721,12 +721,7 @@ be `RepaintBoundary`-wrapped so their animation does not repaint the scroll view
 >
 > ### Known cleanups
 >
-> - `riverpod_generator` / `riverpod_annotation` are installed but unused — providers are
->   hand-written to avoid a `build_runner` run per provider edit. Adopt or remove; do not leave
->   it undecided forever.
-> - Four sheets (`NewProjectSheet`, `NewBookSheet`, `OneLineSheet`, `LogReadingSheet`) now
->   duplicate the same container and field styling. Four is where extraction into a shared
->   `SheetScaffold` + `TraceField` earns its keep.
+> None open.
 
 **Phase 0 — Foundation.** Install Flutter 3.47.2, `flutter create`, `git init`, bundle fonts, build
 the full theme (`colors/typography/spacing/motion`), GoRouter `StatefulShellRoute` with the five

@@ -67,7 +67,6 @@ class _LogReadingSheetState extends ConsumerState<LogReadingSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final c = context.traceColors;
     return FormSheet(
       label: 'Log reading',
       heading: widget.book.title,
@@ -76,32 +75,22 @@ class _LogReadingSheetState extends ConsumerState<LogReadingSheet> {
       fields: [
         FieldBox(
           label: 'Pages read',
-          child: TextField(
+          child: BareField(
             controller: _pages,
+            hint: '27',
             autofocus: true,
-            keyboardType: TextInputType.number,
-            style: TraceText.mono.copyWith(color: c.textPrimary, fontSize: 17),
-            decoration: InputDecoration(
-              border: InputBorder.none,
-              hintText: '27',
-              hintStyle: TraceText.mono.copyWith(color: c.textSecondary),
-            ),
+            number: true,
+            style: TraceText.mono.copyWith(fontSize: 17),
             onSubmitted: (_) => _save(),
           ),
         ),
         FieldBox(
           label: 'Current thought (optional)',
-          child: TextField(
+          child: BareField(
             controller: _thought,
-            maxLines: 3,
+            hint: 'What stayed with you?',
             minLines: 2,
-            textCapitalization: TextCapitalization.sentences,
-            style: TraceText.body.copyWith(color: c.textPrimary),
-            decoration: InputDecoration(
-              border: InputBorder.none,
-              hintText: 'What stayed with you?',
-              hintStyle: TraceText.body.copyWith(color: c.textSecondary),
-            ),
+            maxLines: 3,
           ),
         ),
       ],
