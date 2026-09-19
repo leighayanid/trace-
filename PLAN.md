@@ -695,6 +695,13 @@ be `RepaintBoundary`-wrapped so their animation does not repaint the scroll view
 > - `FormSheet` + `FieldBox` extracted; Log reading and Add quote use them. The
 >   other three sheets still carry their own copy.
 >
+> - Git import (More → Import commits): a fine-grained, read-only GitHub token in
+>   secure storage; commit search over the last 14 days, one suggested BUILD
+>   entry per repo per day, matched to projects by name, nothing saved until
+>   ticked. No duration — commits do not say how long. Default branches only.
+>   Entries only, no proofs, so nothing new syncs. store/listing.md updated:
+>   the default build now has one user-initiated network request.
+>
 > Known gap: `Conflict.clampToServer` is tested but **unwired**. It needs a real
 > server clock, and PostgREST does not surface the response `Date` header through
 > the Dart package. Until then a device with a badly wrong clock can win every

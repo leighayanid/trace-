@@ -39,8 +39,8 @@ class GitHubException implements Exception {
 /// fetches is kept except the entries you choose to add.
 class GitHubClient {
   GitHubClient({required String token, http.Client? client})
-      : _token = token,
-        _http = client ?? http.Client();
+    : _token = token,
+      _http = client ?? http.Client();
 
   final String _token;
   final http.Client _http;
@@ -52,16 +52,22 @@ class GitHubClient {
   static const _pages = 3;
 
   Map<String, String> get _headers => {
-        'Authorization': 'Bearer $_token',
-        'Accept': 'application/vnd.github+json',
-        'X-GitHub-Api-Version': '2022-11-28',
-      };
+    'Authorization': 'Bearer $_token',
+    'Accept': 'application/vnd.github+json',
+    'X-GitHub-Api-Version': '2022-11-28',
+  };
 
-  Future<Map<String, dynamic>> _get(String path, [Map<String, String>? query]) async {
+  Future<Map<String, dynamic>> _get(
+    String path, [
+    Map<String, String>? query,
+  ]) async {
     final http.Response res;
     try {
       res = await _http
-          .get(_base.replace(path: path, queryParameters: query), headers: _headers)
+          .get(
+            _base.replace(path: path, queryParameters: query),
+            headers: _headers,
+          )
           .timeout(const Duration(seconds: 20));
     } on Exception {
       throw const GitHubException('No connection to GitHub.');
@@ -95,8 +101,7 @@ class GitHubClient {
   /// Uses commit search, which covers each repository's default branch — work
   /// still on a feature branch appears once it is merged.
   Future<List<GitCommit>> commitsSince(String login, DateTime since) async {
-    final day =
-        '${since.year}-${_two(since.month)}-${_two(since.day)}';
+    final day = '${since.year}-${_two(since.month)}-${_two(since.day)}';
     final commits = <GitCommit>[];
     for (var page = 1; page <= _pages; page++) {
       final body = await _get('/search/commits', {
@@ -110,12 +115,15 @@ class GitHubClient {
       for (final item in items) {
         final commit = item['commit'] as Map<String, dynamic>;
         final author = commit['author'] as Map<String, dynamic>;
-        commits.add(GitCommit(
-          repo: (item['repository'] as Map<String, dynamic>)['full_name']
-              as String,
-          message: (commit['message'] as String).split('\n').first.trim(),
-          at: DateTime.parse(author['date'] as String).toLocal(),
-        ));
+        commits.add(
+          GitCommit(
+            repo:
+                (item['repository'] as Map<String, dynamic>)['full_name']
+                    as String,
+            message: (commit['message'] as String).split('\n').first.trim(),
+            at: DateTime.parse(author['date'] as String).toLocal(),
+          ),
+        );
       }
       if (items.length < 100) break;
     }

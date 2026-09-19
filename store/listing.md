@@ -81,8 +81,13 @@ false declaration.
 
 ### Build without `--dart-define` backend URLs (default)
 
-The sync screen is compiled out of view and there is no code path that sends
-data off the device.
+The sync screen is compiled out of view. The one network request left is
+Import commits, which only runs when the user opens it after connecting their
+own GitHub token: the app sends that token to GitHub and reads the user's
+commits back. Nothing from the record leaves the device, and the token is kept
+in the platform's secure storage. That is data the user sends to a service they
+chose, at their own request — review it against the stores' current wording on
+user-initiated transfers before filing.
 
 | Question                           | Answer |
 | ---------------------------------- | ------ |
@@ -118,7 +123,11 @@ somewhere stable before submitting.
 ```
 TRACE stores your entries, projects, books and notes on your device. It does
 not use analytics, advertising, or crash reporting, and it does not contact
-any server unless you turn on sync.
+any server unless you turn on sync or connect GitHub.
+
+If you connect GitHub, your access token is kept in your device's secure
+storage and sent only to GitHub, when you open Import commits, to read your own
+commits. Nothing from your record is sent to GitHub.
 
 If you turn on sync, your email address and your record are stored in a
 database used only to copy that record between your own devices. They are not

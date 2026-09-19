@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../git/import_commits_screen.dart';
 import '../../app/theme/theme.dart';
 import '../../app/theme/theme_mode.dart';
 import '../../shared/widgets/press_scale.dart';
@@ -77,6 +78,9 @@ class MoreScreen extends ConsumerWidget {
                   const SizedBox(height: TraceSpace.xs),
                   _row(context, Icons.download_outlined, 'Export and delete',
                       const DataScreen()),
+                  Divider(color: c.border, height: 1),
+                  _row(context, Icons.commit_rounded, 'Import commits',
+                      const ImportCommitsScreen()),
                   // Sync is hidden entirely unless a backend is configured. A
                   // row that cannot work is worse than no row — and the
                   // local-first app is complete without one.
