@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/theme/theme.dart';
+import '../../core/database/database.dart';
+import '../../core/database/database_provider.dart';
 import '../../core/parser/duration_grammar.dart';
 import '../../core/parser/quantity_grammar.dart';
 import '../../shared/models/category.dart';
@@ -13,6 +15,7 @@ import '../../shared/widgets/picker_sheet.dart';
 import '../../shared/widgets/press_scale.dart';
 import '../../shared/widgets/reveal.dart';
 import '../../shared/widgets/save_sweep.dart';
+import '../../shared/widgets/section_label.dart';
 import '../../shared/widgets/trace_button.dart';
 import '../../shared/widgets/trace_sheet.dart';
 import 'entry_draft.dart';
@@ -41,6 +44,7 @@ class _AddEntryScreenState extends ConsumerState<AddEntryScreen> {
   late String? _quantityUnit = widget.draft.quantityUnit;
   late String? _projectId = widget.draft.projectId;
   late String? _bookId = widget.draft.bookId;
+  late String? _parentId = widget.draft.parentId;
   late DateTime _date =
       widget.draft.date ?? DateTime.parse(ref.read(currentDayProvider));
   // Opens with the entry's note when editing — an empty box would read as a
@@ -69,6 +73,7 @@ class _AddEntryScreenState extends ConsumerState<AddEntryScreen> {
       quantityUnit: _quantityUnit,
       projectId: _projectId,
       bookId: _bookId,
+      parentId: _parentId,
       date: _date,
     );
 
@@ -94,6 +99,9 @@ class _AddEntryScreenState extends ConsumerState<AddEntryScreen> {
     final bookTitle = _bookId == null
         ? null
         : books.where((b) => b.id == _bookId).firstOrNull?.title;
+    final parent =
+        _parentId == null ? null : ref.watch(entryByIdProvider(_parentId!)).value;
+    final parentTitle = parent?.deletedAt == null ? parent?.title : null;
 
     return Scaffold(
       backgroundColor: c.bg,
@@ -190,6 +198,21 @@ class _AddEntryScreenState extends ConsumerState<AddEntryScreen> {
                                 ),
                               ),
                             ),
+                          Category.explore => Padding(
+                              key: const ValueKey('parent'),
+                              padding:
+                                  const EdgeInsets.only(top: TraceSpace.xl),
+                              child: _labelled(
+                                context,
+                                'Led from',
+                                _tappableRow(
+                                  context,
+                                  parentTitle ?? 'Nothing — a new thread',
+                                  muted: parentTitle == null,
+                                  onTap: () => _pickParent(context),
+                                ),
+                              ),
+                            ),
                           _ => const SizedBox(key: ValueKey('no-link')),
                         },
                       ).reveal(4),
@@ -226,6 +249,8 @@ class _AddEntryScreenState extends ConsumerState<AddEntryScreen> {
                       const SizedBox(height: TraceSpace.xl),
                       _labelled(context, 'Note (optional)', _noteBox(context))
                           .reveal(7),
+                      if (_category == Category.explore)
+                        _rabbitHole(context, parent).reveal(8),
                       // Proof is deliberately absent in Phase 1. Git and
                       // screenshot capture need real integrations, and a row
                       // that does nothing is worse than no row.
@@ -447,6 +472,98 @@ class _AddEntryScreenState extends ConsumerState<AddEntryScreen> {
       ),
     );
     if (mounted && picked != null) setState(() => _projectId = picked.id);
+  }
+
+  /// Earlier EXPLORE entries this one could have led on from, newest first.
+  Future<void> _pickParent(BuildContext context) async {
+    final candidates = await ref
+        .read(databaseProvider)
+        .recentExplore(excluding: widget.entryId);
+    if (!context.mounted) return;
+    final today = _today;
+    final picked = await showTraceSheet<({String? id})>(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.sizeOf(context).height * 0.7,
+        ),
+        child: PickerSheet(
+          title: 'Led from',
+          children: [
+            PickerRow(
+              label: 'Nothing — a new thread',
+              selected: _parentId == null,
+              onTap: () => Navigator.of(context).pop((id: null)),
+            ),
+            Flexible(
+              child: ListView(
+                shrinkWrap: true,
+                children: [
+                  for (final e in candidates)
+                    PickerRow(
+                      label:
+                          '${e.title} · ${dayLabel(DateTime.parse(e.date), today)}',
+                      selected: e.id == _parentId,
+                      onTap: () => Navigator.of(context).pop((id: e.id)),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (mounted && picked != null) setState(() => _parentId = picked.id);
+  }
+
+  /// The chain this entry sits in, drawn the way the brief sketches it:
+  /// where it started, each step down, this entry, and where it went next.
+  /// Shown only when there is a chain — a lone entry needs no diagram.
+  Widget _rabbitHole(BuildContext context, Entry? parent) {
+    final c = context.traceColors;
+    final above = [
+      if (parent != null && parent.deletedAt == null) ...[
+        ...ref.watch(ancestorsProvider(parent.id)).value ?? const <Entry>[],
+        parent,
+      ],
+    ];
+    final below = widget.entryId == null
+        ? const <Entry>[]
+        : ref.watch(childrenProvider(widget.entryId!)).value ?? const <Entry>[];
+    if (above.isEmpty && below.isEmpty) return const SizedBox.shrink();
+
+    Widget step(String title, {bool here = false}) => Text(
+          title,
+          style: TraceText.body.copyWith(
+            color: here ? c.textPrimary : c.textSecondary,
+            fontWeight: here ? FontWeight.w600 : null,
+          ),
+        );
+    final arrow = Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: TraceSpace.lg,
+        vertical: TraceSpace.xs,
+      ),
+      child: Text('↓', style: TraceText.mono.copyWith(color: c.textSecondary)),
+    );
+
+    return Padding(
+      padding: const EdgeInsets.only(top: TraceSpace.section),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SectionLabel('Rabbit hole'),
+          const SizedBox(height: TraceSpace.md),
+          for (final e in above) ...[step(e.title), arrow],
+          step(_title.trim().isEmpty ? 'This' : _title.trim(), here: true),
+          if (below.isNotEmpty) ...[
+            arrow,
+            for (final e in below) step(e.title),
+          ],
+        ],
+      ),
+    );
   }
 
   Future<void> _pickBook(BuildContext context) async {

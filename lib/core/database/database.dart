@@ -29,7 +29,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -45,6 +45,11 @@ class AppDatabase extends _$AppDatabase {
           if (from < 3) {
             // Books stopped storing current_page; it is derived from sessions.
             await m.alterTable(TableMigration(books));
+          }
+          if (from < 4) {
+            // Rabbit holes and quote pages. New nullable columns only.
+            await m.addColumn(entries, entries.parentId);
+            await m.addColumn(notes, notes.page);
           }
         },
         beforeOpen: (details) async {
@@ -105,6 +110,9 @@ class AppDatabase extends _$AppDatabase {
 
   Future<Entry?> findEntry(String id) =>
       (select(entries)..where((t) => t.id.equals(id))).getSingleOrNull();
+
+  Stream<Entry?> watchEntry(String id) =>
+      (select(entries)..where((t) => t.id.equals(id))).watchSingleOrNull();
 
   // ── Projects ──────────────────────────────────────────────────────────────
 
@@ -228,6 +236,137 @@ class AppDatabase extends _$AppDatabase {
           ..where((t) => t.bookId.equals(bookId) & t.deletedAt.isNull())
           ..orderBy([(t) => OrderingTerm.desc(t.createdAt)]))
         .watch();
+  }
+
+  // ── Search ────────────────────────────────────────────────────────────────
+  //
+  // Plain LIKE rather than an FTS index: a personal record is a few thousand
+  // rows, which LIKE reads in milliseconds, and it needs no second copy of the
+  // text to keep in step. Each word must appear somewhere; case is ignored.
+
+  /// `%word%`, with LIKE's own wildcards in [word] taken literally.
+  static String _containing(String word) =>
+      '%${word.replaceAllMapped(RegExp(r'[\\%_]'), (m) => '\\${m[0]}')}%';
+
+  /// Every one of [words] in the entry's title or note, or in the name of its
+  /// project or book. [query] must join projects and books.
+  void _whereEntryMatches(JoinedSelectStatement query, List<String> words) {
+    for (final word in words) {
+      final pattern = _containing(word);
+      query.where(entries.title.like(pattern, escapeChar: r'\') |
+          entries.description.like(pattern, escapeChar: r'\') |
+          projects.name.like(pattern, escapeChar: r'\') |
+          books.title.like(pattern, escapeChar: r'\'));
+    }
+  }
+
+  /// Live entries in which every one of [words] appears — in the title, the
+  /// note, or the name of the project or book it belongs to. Newest first.
+  Stream<List<Entry>> watchEntriesMatching(List<String> words,
+      {int limit = 200}) {
+    final query = select(entries).join([
+      leftOuterJoin(projects, projects.id.equalsExp(entries.projectId)),
+      leftOuterJoin(books, books.id.equalsExp(entries.bookId)),
+    ])
+      ..where(entries.deletedAt.isNull());
+    _whereEntryMatches(query, words);
+    query
+      ..orderBy([
+        OrderingTerm.desc(entries.date),
+        OrderingTerm.desc(entries.createdAt),
+      ])
+      ..limit(limit);
+    return query.watch().map(
+          (rows) => [for (final r in rows) r.readTable(entries)],
+        );
+  }
+
+  /// Live notes — one-lines, thoughts, quotes — containing every one of
+  /// [words]. Newest first.
+  Stream<List<Note>> watchNotesMatching(List<String> words, {int limit = 100}) {
+    final query = select(notes)..where((t) => t.deletedAt.isNull());
+    for (final word in words) {
+      final pattern = _containing(word);
+      query.where((t) => t.body.like(pattern, escapeChar: r'\'));
+    }
+    query
+      ..orderBy([(t) => OrderingTerm.desc(t.createdAt)])
+      ..limit(limit);
+    return query.watch();
+  }
+
+  /// The first and latest day any entry matched, and how many did — the
+  /// answer to "when did I first…?", counted over everything rather than the
+  /// page of results shown.
+  Stream<({String? first, String? last, int count})> watchMatchSpan(
+      List<String> words) {
+    final first = entries.date.min();
+    final last = entries.date.max();
+    final count = entries.id.count();
+    final query = selectOnly(entries).join([
+      leftOuterJoin(projects, projects.id.equalsExp(entries.projectId),
+          useColumns: false),
+      leftOuterJoin(books, books.id.equalsExp(entries.bookId),
+          useColumns: false),
+    ])
+      ..addColumns([first, last, count])
+      ..where(entries.deletedAt.isNull());
+    _whereEntryMatches(query, words);
+    return query.watchSingle().map((r) => (
+          first: r.read(first),
+          last: r.read(last),
+          count: r.read(count) ?? 0,
+        ));
+  }
+
+  // ── Rabbit holes ──────────────────────────────────────────────────────────
+
+  /// The chain above [id], root first: what it led on from, what that led on
+  /// from, and so on. Stops at a deleted entry, and after 50 steps so a
+  /// corrupted loop cannot run away.
+  Selectable<Entry> _ancestors(String id) => customSelect(
+        'WITH RECURSIVE up(id, parent_id, depth) AS ('
+        ' SELECT id, parent_id, 0 FROM entries WHERE id = ?1'
+        ' UNION ALL'
+        ' SELECT e.id, e.parent_id, up.depth + 1 FROM entries e'
+        ' JOIN up ON e.id = up.parent_id'
+        ' WHERE e.deleted_at IS NULL AND e.id != ?1 AND up.depth < 50'
+        ') SELECT entries.* FROM entries JOIN up ON entries.id = up.id'
+        ' WHERE up.depth > 0 ORDER BY up.depth DESC',
+        variables: [Variable.withString(id)],
+        readsFrom: {entries},
+      ).map((row) => entries.map(row.data));
+
+  Stream<List<Entry>> watchAncestors(String id) => _ancestors(id).watch();
+
+  Future<List<Entry>> ancestorsOf(String id) => _ancestors(id).get();
+
+  /// What [id] led on to, in the order it happened.
+  Stream<List<Entry>> watchChildren(String id) {
+    return (select(entries)
+          ..where((t) => t.parentId.equals(id) & t.deletedAt.isNull())
+          ..orderBy([
+            (t) => OrderingTerm.asc(t.date),
+            (t) => OrderingTerm.asc(t.createdAt),
+          ]))
+        .watch();
+  }
+
+  /// Recent EXPLORE entries, newest first — the candidates for "led from".
+  Future<List<Entry>> recentExplore({String? excluding, int limit = 30}) {
+    return (select(entries)
+          ..where((t) =>
+              t.category.equals('explore') &
+              t.deletedAt.isNull() &
+              (excluding == null
+                  ? const Constant(true)
+                  : t.id.equals(excluding).not()))
+          ..orderBy([
+            (t) => OrderingTerm.desc(t.date),
+            (t) => OrderingTerm.desc(t.createdAt),
+          ])
+          ..limit(limit))
+        .get();
   }
 
   // ── Cross-cutting reads ───────────────────────────────────────────────────

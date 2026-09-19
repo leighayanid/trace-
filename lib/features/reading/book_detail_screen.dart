@@ -13,6 +13,7 @@ import '../../shared/widgets/section_label.dart';
 import '../../shared/widgets/trace_button.dart';
 import '../notes/note_providers.dart';
 import 'log_reading_sheet.dart';
+import 'add_quote_sheet.dart';
 import 'book_notes_screen.dart';
 import 'book_repository.dart';
 import 'reading_providers.dart';
@@ -237,6 +238,11 @@ class BookDetailScreen extends ConsumerWidget {
                 ).reveal(7, key: const ValueKey('log')),
                 const SizedBox(height: TraceSpace.md),
                 TraceButton.outlined(
+                  'Add quote',
+                  onPressed: () => AddQuoteSheet.show(context, book),
+                ).reveal(8, key: const ValueKey('quote')),
+                const SizedBox(height: TraceSpace.md),
+                TraceButton.outlined(
                   notes.isEmpty ? 'No notes yet' : 'View ${notes.length} notes',
                   onPressed: notes.isEmpty
                       ? null
@@ -248,7 +254,7 @@ class BookDetailScreen extends ConsumerWidget {
                               ),
                             ),
                           ),
-                ).reveal(8, key: const ValueKey('notes')),
+                ).reveal(9, key: const ValueKey('notes')),
               ],
             ),
           ),

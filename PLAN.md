@@ -681,6 +681,20 @@ be `RepaintBoundary`-wrapped so their animation does not repaint the scroll view
 >   (now the shared `PeriodStepper`).
 > - "View all sessions" and "View notes" open real screens.
 >
+> **Remembering, 2026-09-19 (local schema v4, migration 004).**
+> - Personal search (Timeline → search icon) over entry titles and notes, their
+>   projects and books, one-lines and reading notes. Every word must appear. It
+>   answers "when" first: first day, latest day, how many. Plain LIKE, no FTS —
+>   instant at personal scale, and no second copy of the text to keep in step.
+> - Rabbit holes: `entries.parent_id` links an EXPLORE entry to the one it led
+>   on from ("Led from" on the form); the form draws the chain. No foreign key
+>   on the server, since a batched push can deliver a child first. Links that
+>   would loop are dropped on save.
+> - Quotes: Add quote on a book, with an optional page (`notes.page`). Quotes
+>   and thoughts read differently on the notes screen.
+> - `FormSheet` + `FieldBox` extracted; Log reading and Add quote use them. The
+>   other three sheets still carry their own copy.
+>
 > Known gap: `Conflict.clampToServer` is tested but **unwired**. It needs a real
 > server clock, and PostgREST does not surface the response `Date` header through
 > the Dart package. Until then a device with a badly wrong clock can win every

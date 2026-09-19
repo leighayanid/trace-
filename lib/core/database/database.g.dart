@@ -193,6 +193,17 @@ class $EntriesTable extends Entries with TableInfo<$EntriesTable, Entry> {
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _parentIdMeta = const VerificationMeta(
+    'parentId',
+  );
+  @override
+  late final GeneratedColumn<String> parentId = GeneratedColumn<String>(
+    'parent_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _tagsMeta = const VerificationMeta('tags');
   @override
   late final GeneratedColumn<String> tags = GeneratedColumn<String>(
@@ -222,6 +233,7 @@ class $EntriesTable extends Entries with TableInfo<$EntriesTable, Entry> {
     quantityUnit,
     projectId,
     bookId,
+    parentId,
     tags,
   ];
   @override
@@ -356,6 +368,12 @@ class $EntriesTable extends Entries with TableInfo<$EntriesTable, Entry> {
         bookId.isAcceptableOrUnknown(data['book_id']!, _bookIdMeta),
       );
     }
+    if (data.containsKey('parent_id')) {
+      context.handle(
+        _parentIdMeta,
+        parentId.isAcceptableOrUnknown(data['parent_id']!, _parentIdMeta),
+      );
+    }
     if (data.containsKey('tags')) {
       context.handle(
         _tagsMeta,
@@ -439,6 +457,10 @@ class $EntriesTable extends Entries with TableInfo<$EntriesTable, Entry> {
         DriftSqlType.string,
         data['${effectivePrefix}book_id'],
       ),
+      parentId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}parent_id'],
+      ),
       tags: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}tags'],
@@ -482,6 +504,13 @@ class Entry extends DataClass implements Insertable<Entry> {
   final String? projectId;
   final String? bookId;
 
+  /// The EXPLORE entry this one led on from — one step down a rabbit hole.
+  ///
+  /// A plain id, not a foreign key: on the server a child can arrive in an
+  /// earlier push than its parent, and a link to a deleted entry simply ends
+  /// the chain there.
+  final String? parentId;
+
   /// JSON array of strings.
   final String tags;
   const Entry({
@@ -502,6 +531,7 @@ class Entry extends DataClass implements Insertable<Entry> {
     this.quantityUnit,
     this.projectId,
     this.bookId,
+    this.parentId,
     required this.tags,
   });
   @override
@@ -543,6 +573,9 @@ class Entry extends DataClass implements Insertable<Entry> {
     }
     if (!nullToAbsent || bookId != null) {
       map['book_id'] = Variable<String>(bookId);
+    }
+    if (!nullToAbsent || parentId != null) {
+      map['parent_id'] = Variable<String>(parentId);
     }
     map['tags'] = Variable<String>(tags);
     return map;
@@ -587,6 +620,9 @@ class Entry extends DataClass implements Insertable<Entry> {
       bookId: bookId == null && nullToAbsent
           ? const Value.absent()
           : Value(bookId),
+      parentId: parentId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(parentId),
       tags: Value(tags),
     );
   }
@@ -614,6 +650,7 @@ class Entry extends DataClass implements Insertable<Entry> {
       quantityUnit: serializer.fromJson<String?>(json['quantityUnit']),
       projectId: serializer.fromJson<String?>(json['projectId']),
       bookId: serializer.fromJson<String?>(json['bookId']),
+      parentId: serializer.fromJson<String?>(json['parentId']),
       tags: serializer.fromJson<String>(json['tags']),
     );
   }
@@ -638,6 +675,7 @@ class Entry extends DataClass implements Insertable<Entry> {
       'quantityUnit': serializer.toJson<String?>(quantityUnit),
       'projectId': serializer.toJson<String?>(projectId),
       'bookId': serializer.toJson<String?>(bookId),
+      'parentId': serializer.toJson<String?>(parentId),
       'tags': serializer.toJson<String>(tags),
     };
   }
@@ -660,6 +698,7 @@ class Entry extends DataClass implements Insertable<Entry> {
     Value<String?> quantityUnit = const Value.absent(),
     Value<String?> projectId = const Value.absent(),
     Value<String?> bookId = const Value.absent(),
+    Value<String?> parentId = const Value.absent(),
     String? tags,
   }) => Entry(
     id: id ?? this.id,
@@ -679,6 +718,7 @@ class Entry extends DataClass implements Insertable<Entry> {
     quantityUnit: quantityUnit.present ? quantityUnit.value : this.quantityUnit,
     projectId: projectId.present ? projectId.value : this.projectId,
     bookId: bookId.present ? bookId.value : this.bookId,
+    parentId: parentId.present ? parentId.value : this.parentId,
     tags: tags ?? this.tags,
   );
   Entry copyWithCompanion(EntriesCompanion data) {
@@ -706,6 +746,7 @@ class Entry extends DataClass implements Insertable<Entry> {
           : this.quantityUnit,
       projectId: data.projectId.present ? data.projectId.value : this.projectId,
       bookId: data.bookId.present ? data.bookId.value : this.bookId,
+      parentId: data.parentId.present ? data.parentId.value : this.parentId,
       tags: data.tags.present ? data.tags.value : this.tags,
     );
   }
@@ -730,6 +771,7 @@ class Entry extends DataClass implements Insertable<Entry> {
           ..write('quantityUnit: $quantityUnit, ')
           ..write('projectId: $projectId, ')
           ..write('bookId: $bookId, ')
+          ..write('parentId: $parentId, ')
           ..write('tags: $tags')
           ..write(')'))
         .toString();
@@ -754,6 +796,7 @@ class Entry extends DataClass implements Insertable<Entry> {
     quantityUnit,
     projectId,
     bookId,
+    parentId,
     tags,
   );
   @override
@@ -777,6 +820,7 @@ class Entry extends DataClass implements Insertable<Entry> {
           other.quantityUnit == this.quantityUnit &&
           other.projectId == this.projectId &&
           other.bookId == this.bookId &&
+          other.parentId == this.parentId &&
           other.tags == this.tags);
 }
 
@@ -798,6 +842,7 @@ class EntriesCompanion extends UpdateCompanion<Entry> {
   final Value<String?> quantityUnit;
   final Value<String?> projectId;
   final Value<String?> bookId;
+  final Value<String?> parentId;
   final Value<String> tags;
   final Value<int> rowid;
   const EntriesCompanion({
@@ -818,6 +863,7 @@ class EntriesCompanion extends UpdateCompanion<Entry> {
     this.quantityUnit = const Value.absent(),
     this.projectId = const Value.absent(),
     this.bookId = const Value.absent(),
+    this.parentId = const Value.absent(),
     this.tags = const Value.absent(),
     this.rowid = const Value.absent(),
   });
@@ -839,6 +885,7 @@ class EntriesCompanion extends UpdateCompanion<Entry> {
     this.quantityUnit = const Value.absent(),
     this.projectId = const Value.absent(),
     this.bookId = const Value.absent(),
+    this.parentId = const Value.absent(),
     this.tags = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
@@ -865,6 +912,7 @@ class EntriesCompanion extends UpdateCompanion<Entry> {
     Expression<String>? quantityUnit,
     Expression<String>? projectId,
     Expression<String>? bookId,
+    Expression<String>? parentId,
     Expression<String>? tags,
     Expression<int>? rowid,
   }) {
@@ -886,6 +934,7 @@ class EntriesCompanion extends UpdateCompanion<Entry> {
       if (quantityUnit != null) 'quantity_unit': quantityUnit,
       if (projectId != null) 'project_id': projectId,
       if (bookId != null) 'book_id': bookId,
+      if (parentId != null) 'parent_id': parentId,
       if (tags != null) 'tags': tags,
       if (rowid != null) 'rowid': rowid,
     });
@@ -909,6 +958,7 @@ class EntriesCompanion extends UpdateCompanion<Entry> {
     Value<String?>? quantityUnit,
     Value<String?>? projectId,
     Value<String?>? bookId,
+    Value<String?>? parentId,
     Value<String>? tags,
     Value<int>? rowid,
   }) {
@@ -930,6 +980,7 @@ class EntriesCompanion extends UpdateCompanion<Entry> {
       quantityUnit: quantityUnit ?? this.quantityUnit,
       projectId: projectId ?? this.projectId,
       bookId: bookId ?? this.bookId,
+      parentId: parentId ?? this.parentId,
       tags: tags ?? this.tags,
       rowid: rowid ?? this.rowid,
     );
@@ -989,6 +1040,9 @@ class EntriesCompanion extends UpdateCompanion<Entry> {
     if (bookId.present) {
       map['book_id'] = Variable<String>(bookId.value);
     }
+    if (parentId.present) {
+      map['parent_id'] = Variable<String>(parentId.value);
+    }
     if (tags.present) {
       map['tags'] = Variable<String>(tags.value);
     }
@@ -1018,6 +1072,7 @@ class EntriesCompanion extends UpdateCompanion<Entry> {
           ..write('quantityUnit: $quantityUnit, ')
           ..write('projectId: $projectId, ')
           ..write('bookId: $bookId, ')
+          ..write('parentId: $parentId, ')
           ..write('tags: $tags, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -2635,6 +2690,15 @@ class $NotesTable extends Notes with TableInfo<$NotesTable, Note> {
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _pageMeta = const VerificationMeta('page');
+  @override
+  late final GeneratedColumn<int> page = GeneratedColumn<int>(
+    'page',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -2649,6 +2713,7 @@ class $NotesTable extends Notes with TableInfo<$NotesTable, Note> {
     entryId,
     projectId,
     bookId,
+    page,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -2739,6 +2804,12 @@ class $NotesTable extends Notes with TableInfo<$NotesTable, Note> {
         bookId.isAcceptableOrUnknown(data['book_id']!, _bookIdMeta),
       );
     }
+    if (data.containsKey('page')) {
+      context.handle(
+        _pageMeta,
+        page.isAcceptableOrUnknown(data['page']!, _pageMeta),
+      );
+    }
     return context;
   }
 
@@ -2796,6 +2867,10 @@ class $NotesTable extends Notes with TableInfo<$NotesTable, Note> {
         DriftSqlType.string,
         data['${effectivePrefix}book_id'],
       ),
+      page: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}page'],
+      ),
     );
   }
 
@@ -2824,6 +2899,9 @@ class Note extends DataClass implements Insertable<Note> {
   final String? entryId;
   final String? projectId;
   final String? bookId;
+
+  /// For a quote: the page it is on.
+  final int? page;
   const Note({
     required this.id,
     required this.createdAt,
@@ -2837,6 +2915,7 @@ class Note extends DataClass implements Insertable<Note> {
     this.entryId,
     this.projectId,
     this.bookId,
+    this.page,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -2865,6 +2944,9 @@ class Note extends DataClass implements Insertable<Note> {
     if (!nullToAbsent || bookId != null) {
       map['book_id'] = Variable<String>(bookId);
     }
+    if (!nullToAbsent || page != null) {
+      map['page'] = Variable<int>(page);
+    }
     return map;
   }
 
@@ -2892,6 +2974,7 @@ class Note extends DataClass implements Insertable<Note> {
       bookId: bookId == null && nullToAbsent
           ? const Value.absent()
           : Value(bookId),
+      page: page == null && nullToAbsent ? const Value.absent() : Value(page),
     );
   }
 
@@ -2913,6 +2996,7 @@ class Note extends DataClass implements Insertable<Note> {
       entryId: serializer.fromJson<String?>(json['entryId']),
       projectId: serializer.fromJson<String?>(json['projectId']),
       bookId: serializer.fromJson<String?>(json['bookId']),
+      page: serializer.fromJson<int?>(json['page']),
     );
   }
   @override
@@ -2931,6 +3015,7 @@ class Note extends DataClass implements Insertable<Note> {
       'entryId': serializer.toJson<String?>(entryId),
       'projectId': serializer.toJson<String?>(projectId),
       'bookId': serializer.toJson<String?>(bookId),
+      'page': serializer.toJson<int?>(page),
     };
   }
 
@@ -2947,6 +3032,7 @@ class Note extends DataClass implements Insertable<Note> {
     Value<String?> entryId = const Value.absent(),
     Value<String?> projectId = const Value.absent(),
     Value<String?> bookId = const Value.absent(),
+    Value<int?> page = const Value.absent(),
   }) => Note(
     id: id ?? this.id,
     createdAt: createdAt ?? this.createdAt,
@@ -2960,6 +3046,7 @@ class Note extends DataClass implements Insertable<Note> {
     entryId: entryId.present ? entryId.value : this.entryId,
     projectId: projectId.present ? projectId.value : this.projectId,
     bookId: bookId.present ? bookId.value : this.bookId,
+    page: page.present ? page.value : this.page,
   );
   Note copyWithCompanion(NotesCompanion data) {
     return Note(
@@ -2975,6 +3062,7 @@ class Note extends DataClass implements Insertable<Note> {
       entryId: data.entryId.present ? data.entryId.value : this.entryId,
       projectId: data.projectId.present ? data.projectId.value : this.projectId,
       bookId: data.bookId.present ? data.bookId.value : this.bookId,
+      page: data.page.present ? data.page.value : this.page,
     );
   }
 
@@ -2992,7 +3080,8 @@ class Note extends DataClass implements Insertable<Note> {
           ..write('date: $date, ')
           ..write('entryId: $entryId, ')
           ..write('projectId: $projectId, ')
-          ..write('bookId: $bookId')
+          ..write('bookId: $bookId, ')
+          ..write('page: $page')
           ..write(')'))
         .toString();
   }
@@ -3011,6 +3100,7 @@ class Note extends DataClass implements Insertable<Note> {
     entryId,
     projectId,
     bookId,
+    page,
   );
   @override
   bool operator ==(Object other) =>
@@ -3027,7 +3117,8 @@ class Note extends DataClass implements Insertable<Note> {
           other.date == this.date &&
           other.entryId == this.entryId &&
           other.projectId == this.projectId &&
-          other.bookId == this.bookId);
+          other.bookId == this.bookId &&
+          other.page == this.page);
 }
 
 class NotesCompanion extends UpdateCompanion<Note> {
@@ -3043,6 +3134,7 @@ class NotesCompanion extends UpdateCompanion<Note> {
   final Value<String?> entryId;
   final Value<String?> projectId;
   final Value<String?> bookId;
+  final Value<int?> page;
   final Value<int> rowid;
   const NotesCompanion({
     this.id = const Value.absent(),
@@ -3057,6 +3149,7 @@ class NotesCompanion extends UpdateCompanion<Note> {
     this.entryId = const Value.absent(),
     this.projectId = const Value.absent(),
     this.bookId = const Value.absent(),
+    this.page = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   NotesCompanion.insert({
@@ -3072,6 +3165,7 @@ class NotesCompanion extends UpdateCompanion<Note> {
     this.entryId = const Value.absent(),
     this.projectId = const Value.absent(),
     this.bookId = const Value.absent(),
+    this.page = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        createdAt = Value(createdAt),
@@ -3090,6 +3184,7 @@ class NotesCompanion extends UpdateCompanion<Note> {
     Expression<String>? entryId,
     Expression<String>? projectId,
     Expression<String>? bookId,
+    Expression<int>? page,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -3105,6 +3200,7 @@ class NotesCompanion extends UpdateCompanion<Note> {
       if (entryId != null) 'entry_id': entryId,
       if (projectId != null) 'project_id': projectId,
       if (bookId != null) 'book_id': bookId,
+      if (page != null) 'page': page,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -3122,6 +3218,7 @@ class NotesCompanion extends UpdateCompanion<Note> {
     Value<String?>? entryId,
     Value<String?>? projectId,
     Value<String?>? bookId,
+    Value<int?>? page,
     Value<int>? rowid,
   }) {
     return NotesCompanion(
@@ -3137,6 +3234,7 @@ class NotesCompanion extends UpdateCompanion<Note> {
       entryId: entryId ?? this.entryId,
       projectId: projectId ?? this.projectId,
       bookId: bookId ?? this.bookId,
+      page: page ?? this.page,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -3180,6 +3278,9 @@ class NotesCompanion extends UpdateCompanion<Note> {
     if (bookId.present) {
       map['book_id'] = Variable<String>(bookId.value);
     }
+    if (page.present) {
+      map['page'] = Variable<int>(page.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -3201,6 +3302,7 @@ class NotesCompanion extends UpdateCompanion<Note> {
           ..write('entryId: $entryId, ')
           ..write('projectId: $projectId, ')
           ..write('bookId: $bookId, ')
+          ..write('page: $page, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -4321,6 +4423,7 @@ typedef $$EntriesTableCreateCompanionBuilder =
       Value<String?> quantityUnit,
       Value<String?> projectId,
       Value<String?> bookId,
+      Value<String?> parentId,
       Value<String> tags,
       Value<int> rowid,
     });
@@ -4343,6 +4446,7 @@ typedef $$EntriesTableUpdateCompanionBuilder =
       Value<String?> quantityUnit,
       Value<String?> projectId,
       Value<String?> bookId,
+      Value<String?> parentId,
       Value<String> tags,
       Value<int> rowid,
     });
@@ -4438,6 +4542,11 @@ class $$EntriesTableFilterComposer
 
   ColumnFilters<String> get bookId => $composableBuilder(
     column: $table.bookId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get parentId => $composableBuilder(
+    column: $table.parentId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -4541,6 +4650,11 @@ class $$EntriesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get parentId => $composableBuilder(
+    column: $table.parentId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get tags => $composableBuilder(
     column: $table.tags,
     builder: (column) => ColumnOrderings(column),
@@ -4613,6 +4727,9 @@ class $$EntriesTableAnnotationComposer
   GeneratedColumn<String> get bookId =>
       $composableBuilder(column: $table.bookId, builder: (column) => column);
 
+  GeneratedColumn<String> get parentId =>
+      $composableBuilder(column: $table.parentId, builder: (column) => column);
+
   GeneratedColumn<String> get tags =>
       $composableBuilder(column: $table.tags, builder: (column) => column);
 }
@@ -4662,6 +4779,7 @@ class $$EntriesTableTableManager
                 Value<String?> quantityUnit = const Value.absent(),
                 Value<String?> projectId = const Value.absent(),
                 Value<String?> bookId = const Value.absent(),
+                Value<String?> parentId = const Value.absent(),
                 Value<String> tags = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => EntriesCompanion(
@@ -4682,6 +4800,7 @@ class $$EntriesTableTableManager
                 quantityUnit: quantityUnit,
                 projectId: projectId,
                 bookId: bookId,
+                parentId: parentId,
                 tags: tags,
                 rowid: rowid,
               ),
@@ -4704,6 +4823,7 @@ class $$EntriesTableTableManager
                 Value<String?> quantityUnit = const Value.absent(),
                 Value<String?> projectId = const Value.absent(),
                 Value<String?> bookId = const Value.absent(),
+                Value<String?> parentId = const Value.absent(),
                 Value<String> tags = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => EntriesCompanion.insert(
@@ -4724,6 +4844,7 @@ class $$EntriesTableTableManager
                 quantityUnit: quantityUnit,
                 projectId: projectId,
                 bookId: bookId,
+                parentId: parentId,
                 tags: tags,
                 rowid: rowid,
               ),
@@ -5470,6 +5591,7 @@ typedef $$NotesTableCreateCompanionBuilder =
       Value<String?> entryId,
       Value<String?> projectId,
       Value<String?> bookId,
+      Value<int?> page,
       Value<int> rowid,
     });
 typedef $$NotesTableUpdateCompanionBuilder =
@@ -5486,6 +5608,7 @@ typedef $$NotesTableUpdateCompanionBuilder =
       Value<String?> entryId,
       Value<String?> projectId,
       Value<String?> bookId,
+      Value<int?> page,
       Value<int> rowid,
     });
 
@@ -5554,6 +5677,11 @@ class $$NotesTableFilterComposer extends Composer<_$AppDatabase, $NotesTable> {
 
   ColumnFilters<String> get bookId => $composableBuilder(
     column: $table.bookId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get page => $composableBuilder(
+    column: $table.page,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -5626,6 +5754,11 @@ class $$NotesTableOrderingComposer
     column: $table.bookId,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<int> get page => $composableBuilder(
+    column: $table.page,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$NotesTableAnnotationComposer
@@ -5672,6 +5805,9 @@ class $$NotesTableAnnotationComposer
 
   GeneratedColumn<String> get bookId =>
       $composableBuilder(column: $table.bookId, builder: (column) => column);
+
+  GeneratedColumn<int> get page =>
+      $composableBuilder(column: $table.page, builder: (column) => column);
 }
 
 class $$NotesTableTableManager
@@ -5714,6 +5850,7 @@ class $$NotesTableTableManager
                 Value<String?> entryId = const Value.absent(),
                 Value<String?> projectId = const Value.absent(),
                 Value<String?> bookId = const Value.absent(),
+                Value<int?> page = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => NotesCompanion(
                 id: id,
@@ -5728,6 +5865,7 @@ class $$NotesTableTableManager
                 entryId: entryId,
                 projectId: projectId,
                 bookId: bookId,
+                page: page,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -5744,6 +5882,7 @@ class $$NotesTableTableManager
                 Value<String?> entryId = const Value.absent(),
                 Value<String?> projectId = const Value.absent(),
                 Value<String?> bookId = const Value.absent(),
+                Value<int?> page = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => NotesCompanion.insert(
                 id: id,
@@ -5758,6 +5897,7 @@ class $$NotesTableTableManager
                 entryId: entryId,
                 projectId: projectId,
                 bookId: bookId,
+                page: page,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

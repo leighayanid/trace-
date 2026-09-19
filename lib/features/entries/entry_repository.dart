@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../core/database/database.dart';
+import '../../core/parser/quantity_grammar.dart';
 import '../../shared/models/category.dart';
 import 'entry_draft.dart';
 
@@ -41,6 +42,7 @@ class EntryRepository {
         quantityUnit: Value(draft.quantity == null ? null : draft.quantityUnit),
         projectId: Value(_projectOf(draft)),
         bookId: Value(_bookOf(draft)),
+        parentId: Value(await _parentOf(draft, id)),
       ),
     );
     await _settle(_bookOf(draft));
@@ -68,6 +70,7 @@ class EntryRepository {
         quantityUnit: Value(draft.quantity == null ? null : draft.quantityUnit),
         projectId: Value(_projectOf(draft)),
         bookId: Value(_bookOf(draft)),
+        parentId: Value(await _parentOf(draft, id)),
         updatedAt: Value(DateTime.now().toUtc()),
         dirty: const Value(true),
       ),
@@ -82,6 +85,16 @@ class EntryRepository {
       d.category == Category.build ? d.projectId : null;
   static String? _bookOf(EntryDraft d) =>
       d.category == Category.read ? d.bookId : null;
+
+  /// A rabbit hole is EXPLORE entries leading on from each other. A link that
+  /// would lead back to the entry itself — directly or through its chain — is
+  /// dropped, so a chain always has a start.
+  Future<String?> _parentOf(EntryDraft d, String id) async {
+    final parent = d.category == Category.explore ? d.parentId : null;
+    if (parent == null || parent == id) return null;
+    final above = await _db.ancestorsOf(parent);
+    return above.any((e) => e.id == id) ? null : parent;
+  }
 
   static String? _text(String? s) {
     final t = s?.trim();
@@ -110,4 +123,12 @@ extension EntryView on Entry {
 
   Duration? get durationOrNull =>
       durationSecs == null ? null : Duration(seconds: durationSecs!);
+
+  /// `32 pages` for a row's value column — only when there is no duration,
+  /// which takes the column when both exist.
+  String? get quantityLabel {
+    if (quantity == null || quantityUnit == null) return null;
+    if (durationSecs != null) return null;
+    return QuantityGrammar.format(quantity!, quantityUnit!);
+  }
 }

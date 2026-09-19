@@ -4,7 +4,6 @@ import 'package:intl/intl.dart';
 
 import '../../app/theme/theme.dart';
 import '../../core/database/database.dart';
-import '../../core/parser/quantity_grammar.dart';
 import '../../shared/widgets/day_picker.dart';
 import '../../shared/widgets/entry_row.dart';
 import '../../shared/widgets/mono_duration.dart';
@@ -194,7 +193,7 @@ class TodayScreen extends ConsumerWidget {
                   category: entries[i].categoryEnum,
                   title: entries[i].title,
                   duration: entries[i].durationOrNull,
-                  quantityLabel: _quantityLabel(entries[i]),
+                  quantityLabel: entries[i].quantityLabel,
                   // Flies into the category tile on the edit screen. Only
                   // Today sets this: Timeline shares the same shell route, and
                   // a second row with the same tag would be a duplicate Hero.
@@ -214,11 +213,6 @@ class TodayScreen extends ConsumerWidget {
     );
   }
 
-  static String? _quantityLabel(Entry e) {
-    if (e.quantity == null || e.quantityUnit == null) return null;
-    if (e.durationSecs != null) return null;
-    return QuantityGrammar.format(e.quantity!, e.quantityUnit!);
-  }
 
   Widget _deleteBackground(BuildContext context) {
     final c = context.traceColors;

@@ -7,7 +7,6 @@ import 'package:intl/intl.dart';
 
 import '../../app/theme/theme.dart';
 import '../../core/database/database.dart';
-import '../../core/parser/quantity_grammar.dart';
 import '../../shared/widgets/day_picker.dart';
 import '../../shared/widgets/entry_row.dart';
 import '../../shared/widgets/period_stepper.dart';
@@ -15,6 +14,7 @@ import '../../shared/widgets/press_scale.dart';
 import '../../shared/widgets/reveal.dart';
 import '../entries/entry_providers.dart';
 import '../entries/entry_repository.dart';
+import '../search/search_screen.dart';
 import 'timeline_providers.dart';
 
 /// The primary history view.
@@ -50,6 +50,21 @@ class TimelineScreen extends ConsumerWidget {
                   Text('Timeline',
                       style:
                           TraceText.screenTitle.copyWith(color: c.textPrimary)),
+                  Row(
+                    children: [
+                      PressScale(
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => const SearchScreen(),
+                          ),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(TraceSpace.xs),
+                          child: Icon(Icons.search_rounded,
+                              size: 20, color: c.textSecondary),
+                        ),
+                      ),
+                      const SizedBox(width: TraceSpace.sm),
                   // Jumps to a month without stepping through every one
                   // between.
                   PressScale(
@@ -72,6 +87,8 @@ class TimelineScreen extends ConsumerWidget {
                       child: Icon(Icons.calendar_today_outlined,
                           size: 18, color: c.textSecondary),
                     ),
+                  ),
+                    ],
                   ),
                 ],
               ),
@@ -222,7 +239,7 @@ class _DayBlock extends StatelessWidget {
                       category: group.entries[i].categoryEnum,
                       title: group.entries[i].title,
                       duration: group.entries[i].durationOrNull,
-                      quantityLabel: _quantityLabel(group.entries[i]),
+                      quantityLabel: group.entries[i].quantityLabel,
                       showChevron: false,
                       // Dozens of simultaneous tickers in a scrolling history
                       // would be noise; the value matters more than the motion.
@@ -245,11 +262,6 @@ class _DayBlock extends StatelessWidget {
     );
   }
 
-  static String? _quantityLabel(Entry e) {
-    if (e.quantity == null || e.quantityUnit == null) return null;
-    if (e.durationSecs != null) return null;
-    return QuantityGrammar.format(e.quantity!, e.quantityUnit!);
-  }
 }
 
 /// A day's date that stays in view while you read that day.

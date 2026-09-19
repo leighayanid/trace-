@@ -102,3 +102,17 @@ final presenceProvider = Provider<double>((ref) {
   final touched = entries.map((e) => e.category).toSet().length;
   return touched / 4;
 });
+
+final entryByIdProvider = StreamProvider.family<Entry?, String>(
+  (ref, id) => ref.watch(databaseProvider).watchEntry(id),
+);
+
+/// The rabbit hole above an entry, root first.
+final ancestorsProvider = StreamProvider.family<List<Entry>, String>(
+  (ref, id) => ref.watch(databaseProvider).watchAncestors(id),
+);
+
+/// What an entry led on to.
+final childrenProvider = StreamProvider.family<List<Entry>, String>(
+  (ref, id) => ref.watch(databaseProvider).watchChildren(id),
+);

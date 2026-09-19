@@ -17,6 +17,7 @@ class EntryDraft {
     this.quantityUnit,
     this.projectId,
     this.bookId,
+    this.parentId,
     this.date,
   });
 
@@ -52,6 +53,7 @@ class EntryDraft {
         quantityUnit: e.quantityUnit,
         projectId: e.projectId,
         bookId: e.bookId,
+        parentId: e.parentId,
         date: DateTime.parse(e.date),
       );
 
@@ -63,6 +65,9 @@ class EntryDraft {
   final String? quantityUnit;
   final String? projectId;
   final String? bookId;
+
+  /// The EXPLORE entry this one led on from.
+  final String? parentId;
 
   /// The day it belongs to, as local midnight. Null means today.
   final DateTime? date;

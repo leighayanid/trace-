@@ -40,6 +40,35 @@ void main() {
         "('b1', 1789000000, 1789000000, 'Atomic Habits', 27, 300)",
   ];
 
+  // Unchanged from v1 to v3; v4 adds a column to each.
+  const entriesV1 = [
+    'CREATE TABLE "entries" ('
+        '"id" TEXT NOT NULL, "created_at" INTEGER NOT NULL, '
+        '"updated_at" INTEGER NOT NULL, "deleted_at" INTEGER NULL, '
+        '"dirty" INTEGER NOT NULL DEFAULT 1 CHECK ("dirty" IN (0, 1)), '
+        '"synced_at" INTEGER NULL, "category" TEXT NOT NULL, '
+        '"title" TEXT NOT NULL, "description" TEXT NULL, '
+        '"date" TEXT NOT NULL, "started_at" INTEGER NULL, '
+        '"ended_at" INTEGER NULL, "duration_secs" INTEGER NULL, '
+        '"quantity" REAL NULL, "quantity_unit" TEXT NULL, '
+        '"project_id" TEXT NULL, "book_id" TEXT NULL, '
+        '"tags" TEXT NOT NULL DEFAULT \'[]\', PRIMARY KEY ("id"))',
+    "INSERT INTO entries (id, created_at, updated_at, category, title, date) "
+        "VALUES ('e1', 1789000000, 1789000000, 'explore', 'SQLite', "
+        "'2026-09-10')",
+  ];
+
+  const notesV1 = [
+    'CREATE TABLE "notes" ('
+        '"id" TEXT NOT NULL, "created_at" INTEGER NOT NULL, '
+        '"updated_at" INTEGER NOT NULL, "deleted_at" INTEGER NULL, '
+        '"dirty" INTEGER NOT NULL DEFAULT 1 CHECK ("dirty" IN (0, 1)), '
+        '"synced_at" INTEGER NULL, "body" TEXT NOT NULL, '
+        '"kind" TEXT NOT NULL DEFAULT \'note\', "date" TEXT NULL, '
+        '"entry_id" TEXT NULL, "project_id" TEXT NULL, "book_id" TEXT NULL, '
+        'PRIMARY KEY ("id"))',
+  ];
+
   AppDatabase open(int version, List<String> schema) {
     final db = AppDatabase.forTesting(NativeDatabase.memory(setup: (raw) {
       schema.forEach(raw.execute);
@@ -54,9 +83,9 @@ void main() {
       .map((r) => r.read<String>('name'))
       .get();
 
-  test('v1 → v3 swaps the timestamp cursor for per-table cursors', () async {
+  test('v1 → v4 swaps the timestamp cursor for per-table cursors', () async {
     // Books did not change between v1 and v2.
-    final db = open(1, [...syncStatesV1, ...booksV2]);
+    final db = open(1, [...syncStatesV1, ...booksV2, ...entriesV1, ...notesV1]);
 
     final state = await db.syncState();
     expect(state!.lastPushAt, DateTime.fromMillisecondsSinceEpoch(1789000000000));
@@ -70,9 +99,11 @@ void main() {
     expect(await db.pullCursor('entries'), 7);
   });
 
-  test('v2 → v3 drops the stored page and keeps the book', () async {
+  test('v2 → v4 drops the stored page and keeps the book', () async {
     final db = open(2, [
       ...booksV2,
+      ...entriesV1,
+      ...notesV1,
       'CREATE TABLE "sync_cursors" ("name" TEXT NOT NULL, '
           '"seq" INTEGER NOT NULL, PRIMARY KEY ("name"))',
       'CREATE TABLE "sync_states" ("id" INTEGER NOT NULL DEFAULT 1, '
@@ -84,5 +115,19 @@ void main() {
     final book = (await db.allBooks()).single;
     expect(book.title, 'Atomic Habits');
     expect(book.totalPages, 300);
+  });
+
+  test('v3 → v4 adds the rabbit-hole link and the quote page', () async {
+    final db = open(3, [
+      ...entriesV1,
+      ...notesV1,
+      'CREATE TABLE "books" ("id" TEXT NOT NULL, PRIMARY KEY ("id"))',
+    ]);
+
+    expect(await columns(db, 'entries'), contains('parent_id'));
+    expect(await columns(db, 'notes'), contains('page'));
+    final entry = (await db.findEntry('e1'))!;
+    expect(entry.title, 'SQLite');
+    expect(entry.parentId, isNull);
   });
 }

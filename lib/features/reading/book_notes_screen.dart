@@ -8,10 +8,12 @@ import '../../shared/widgets/press_scale.dart';
 import '../../shared/widgets/undo_bar.dart';
 import '../notes/note_providers.dart';
 
-/// Every thought left on a book, newest first.
+/// Every quote and thought kept from a book, newest first.
 ///
-/// Read like a margin, not a list: each note in the quote face, with the day it
-/// was written beneath it. A note swipes away, with a moment to take it back.
+/// Read like a margin, not a list. A quote is the author's words, so it is set
+/// in the quote face inside quotation marks, with its page; a thought is the
+/// reader's own, set plainly. A note swipes away, with a moment to take it
+/// back.
 class BookNotesScreen extends ConsumerWidget {
   const BookNotesScreen({
     super.key,
@@ -90,14 +92,20 @@ class BookNotesScreen extends ConsumerWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          '"${n.body}"',
-                          style:
-                              TraceText.quote.copyWith(color: c.textPrimary),
+                          n.kind == 'quote' ? '"${n.body}"' : n.body,
+                          style: (n.kind == 'quote'
+                                  ? TraceText.quote
+                                  : TraceText.body)
+                              .copyWith(color: c.textPrimary),
                         ),
                         const SizedBox(height: TraceSpace.sm),
                         Text(
-                          DateFormat('MMM d, yyyy')
-                              .format(n.createdAt.toLocal()),
+                          [
+                            if (n.kind == 'quote' && n.page != null)
+                              'p. ${n.page}',
+                            DateFormat('MMM d, yyyy')
+                                .format(n.createdAt.toLocal()),
+                          ].join(' · '),
                           style: TraceText.rowSubtitle
                               .copyWith(color: c.textSecondary),
                         ),

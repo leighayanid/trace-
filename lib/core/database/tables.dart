@@ -49,6 +49,13 @@ class Entries extends Table with SyncTail {
   TextColumn get projectId => text().nullable()();
   TextColumn get bookId => text().nullable()();
 
+  /// The EXPLORE entry this one led on from — one step down a rabbit hole.
+  ///
+  /// A plain id, not a foreign key: on the server a child can arrive in an
+  /// earlier push than its parent, and a link to a deleted entry simply ends
+  /// the chain there.
+  TextColumn get parentId => text().nullable()();
+
   /// JSON array of strings.
   TextColumn get tags => text().withDefault(const Constant('[]'))();
 }
@@ -102,6 +109,9 @@ class Notes extends Table with SyncTail {
   TextColumn get entryId => text().nullable()();
   TextColumn get projectId => text().nullable()();
   TextColumn get bookId => text().nullable()();
+
+  /// For a quote: the page it is on.
+  IntColumn get page => integer().nullable()();
 }
 
 /// Optional evidence that an entry happened. Never required.

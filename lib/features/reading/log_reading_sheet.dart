@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/theme/theme.dart';
-import '../../shared/widgets/press_scale.dart';
+import '../../shared/widgets/form_sheet.dart';
 import '../../shared/widgets/trace_sheet.dart';
 import '../../core/database/database.dart';
 import '../notes/note_providers.dart';
@@ -68,107 +68,43 @@ class _LogReadingSheetState extends ConsumerState<LogReadingSheet> {
   @override
   Widget build(BuildContext context) {
     final c = context.traceColors;
-    return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
-      child: Container(
-        decoration: BoxDecoration(
-          color: c.bg,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-          border: Border(top: BorderSide(color: c.border)),
+    return FormSheet(
+      label: 'Log reading',
+      heading: widget.book.title,
+      saving: _saving,
+      onSave: _save,
+      fields: [
+        FieldBox(
+          label: 'Pages read',
+          child: TextField(
+            controller: _pages,
+            autofocus: true,
+            keyboardType: TextInputType.number,
+            style: TraceText.mono.copyWith(color: c.textPrimary, fontSize: 17),
+            decoration: InputDecoration(
+              border: InputBorder.none,
+              hintText: '27',
+              hintStyle: TraceText.mono.copyWith(color: c.textSecondary),
+            ),
+            onSubmitted: (_) => _save(),
+          ),
         ),
-        child: SafeArea(
-          top: false,
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(TraceSpace.gutter),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('LOG READING',
-                    style: TraceText.sectionLabel
-                        .copyWith(color: c.textSecondary)),
-                const SizedBox(height: TraceSpace.lg),
-                Text(widget.book.title,
-                    style: TraceText.bookTitle.copyWith(color: c.textPrimary)),
-                const SizedBox(height: TraceSpace.xl),
-                Text('Pages read',
-                    style:
-                        TraceText.rowSubtitle.copyWith(color: c.textSecondary)),
-                const SizedBox(height: TraceSpace.sm),
-                _box(
-                  context,
-                  TextField(
-                    controller: _pages,
-                    autofocus: true,
-                    keyboardType: TextInputType.number,
-                    style: TraceText.mono.copyWith(
-                      color: c.textPrimary,
-                      fontSize: 17,
-                    ),
-                    decoration: InputDecoration(
-                      border: InputBorder.none,
-                      hintText: '27',
-                      hintStyle:
-                          TraceText.mono.copyWith(color: c.textSecondary),
-                    ),
-                    onSubmitted: (_) => _save(),
-                  ),
-                ),
-                const SizedBox(height: TraceSpace.lg),
-                Text('Current thought (optional)',
-                    style:
-                        TraceText.rowSubtitle.copyWith(color: c.textSecondary)),
-                const SizedBox(height: TraceSpace.sm),
-                _box(
-                  context,
-                  TextField(
-                    controller: _thought,
-                    maxLines: 3,
-                    minLines: 2,
-                    textCapitalization: TextCapitalization.sentences,
-                    style: TraceText.body.copyWith(color: c.textPrimary),
-                    decoration: InputDecoration(
-                      border: InputBorder.none,
-                      hintText: 'What stayed with you?',
-                      hintStyle:
-                          TraceText.body.copyWith(color: c.textSecondary),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: TraceSpace.xl),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: PressScale(
-                    onTap: _save,
-                    child: Padding(
-                      padding: const EdgeInsets.all(TraceSpace.sm),
-                      child: Text(
-                        _saving ? 'Saving…' : 'Save',
-                        style: TraceText.button.copyWith(color: c.navy),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+        FieldBox(
+          label: 'Current thought (optional)',
+          child: TextField(
+            controller: _thought,
+            maxLines: 3,
+            minLines: 2,
+            textCapitalization: TextCapitalization.sentences,
+            style: TraceText.body.copyWith(color: c.textPrimary),
+            decoration: InputDecoration(
+              border: InputBorder.none,
+              hintText: 'What stayed with you?',
+              hintStyle: TraceText.body.copyWith(color: c.textSecondary),
             ),
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _box(BuildContext context, Widget child) {
-    final c = context.traceColors;
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: TraceSpace.md,
-        vertical: TraceSpace.sm,
-      ),
-      decoration: BoxDecoration(
-        border: Border.all(color: c.border),
-        borderRadius: BorderRadius.circular(TraceRadius.card),
-      ),
-      child: child,
+      ],
     );
   }
 }

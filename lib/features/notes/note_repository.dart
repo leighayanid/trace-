@@ -62,7 +62,7 @@ class NoteRepository {
 
   /// A free note attached to a book — used for reading thoughts and quotes.
   Future<void> addBookNote(String bookId, String body,
-      {String kind = 'thought'}) async {
+      {String kind = 'thought', int? page}) async {
     final trimmed = body.trim();
     if (trimmed.isEmpty) return;
     final now = DateTime.now().toUtc();
@@ -72,6 +72,7 @@ class NoteRepository {
         body: trimmed,
         kind: Value(kind),
         bookId: Value(bookId),
+        page: Value(page),
         createdAt: now,
         updatedAt: now,
       ),
