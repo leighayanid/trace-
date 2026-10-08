@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../features/entries/add_entry_screen.dart';
 import '../features/entries/entry_draft.dart';
 import '../features/entries/quick_add_sheet.dart';
+import '../features/reminder/reminder_providers.dart';
 import '../shared/widgets/trace_nav_bar.dart';
 import '../shared/widgets/trace_sheet.dart';
 import 'theme/theme.dart';
@@ -12,13 +14,13 @@ import 'theme/theme.dart';
 ///
 /// Owns the controller that drives both the Quick Add sheet and the nav `+`
 /// rotating into a `×`. One controller, so the two can never drift apart.
-class TraceShell extends StatefulWidget {
+class TraceShell extends ConsumerStatefulWidget {
   const TraceShell({super.key, required this.navigationShell});
 
   final StatefulNavigationShell navigationShell;
 
   @override
-  State<TraceShell> createState() => TraceShellState();
+  ConsumerState<TraceShell> createState() => TraceShellState();
 
   /// Lets a descendant (the Today screen's `+ Add entry`) open the same sheet
   /// the nav bar opens, rather than duplicating the flow.
@@ -26,7 +28,8 @@ class TraceShell extends StatefulWidget {
       context.findAncestorStateOfType<TraceShellState>();
 }
 
-class TraceShellState extends State<TraceShell> with TickerProviderStateMixin {
+class TraceShellState extends ConsumerState<TraceShell>
+    with TickerProviderStateMixin {
   /// The Quick Add sheet's own transition controller — handed to the sheet
   /// route, not merely started alongside it. So the `+` turning into a `×`
   /// tracks the sheet exactly: open, close, and a finger dragging it down
@@ -68,6 +71,17 @@ class TraceShellState extends State<TraceShell> with TickerProviderStateMixin {
   bool _quickAddOpen = false;
 
   @override
+  void initState() {
+    super.initState();
+    // A tap that launched the app is raised before this shell exists — the
+    // splash is still showing — so the signal is read on arrival as well as
+    // listened for.
+    if (ref.read(reminderTapProvider.notifier).take()) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _answerReminder());
+    }
+  }
+
+  @override
   void dispose() {
     _plus.dispose();
     _tab.dispose();
@@ -101,6 +115,14 @@ class TraceShellState extends State<TraceShell> with TickerProviderStateMixin {
     }
   }
 
+  /// A tapped reminder asks one question, so it opens the one answer: Quick
+  /// Add, on Today, rather than dropping the user on a screen to find it
+  /// themselves.
+  void _answerReminder() {
+    if (widget.navigationShell.currentIndex != 0) _select(0);
+    openQuickAdd();
+  }
+
   void _openDetails(EntryDraft draft) {
     Navigator.of(context).push(
       MaterialPageRoute<void>(builder: (_) => AddEntryScreen(draft: draft)),
@@ -109,6 +131,12 @@ class TraceShellState extends State<TraceShell> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen(reminderTapProvider, (_, tapped) {
+      if (tapped && ref.read(reminderTapProvider.notifier).take()) {
+        _answerReminder();
+      }
+    });
+
     return Scaffold(
       body: AnimatedBuilder(
         animation: _tab,

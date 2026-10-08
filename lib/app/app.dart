@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/sync/sync_providers.dart' show autoSyncProvider;
+import '../features/reminder/reminder_providers.dart'
+    show reminderSchedulerProvider;
 import 'router.dart';
 import 'theme/theme.dart';
 import 'theme/theme_mode.dart';
@@ -22,6 +24,9 @@ class _TraceAppState extends ConsumerState<TraceApp> {
   Widget build(BuildContext context) {
     // Background sync while signed in; a no-op in a local-only build.
     ref.watch(autoSyncProvider);
+    // Keeps the daily reminder armed and in step with what has been recorded;
+    // a no-op until the user switches it on.
+    ref.watch(reminderSchedulerProvider);
 
     return MaterialApp.router(
       title: 'TRACE',

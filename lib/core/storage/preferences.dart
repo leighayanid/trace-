@@ -10,7 +10,16 @@ abstract final class PrefKeys {
   /// `system` | `light` | `dark` — [ThemeMode.name].
   static const themeMode = 'theme_mode';
 
-  static const all = {themeMode};
+  /// Whether the daily reminder is on. Absent means off: TRACE does not start
+  /// notifying a user who never asked it to.
+  static const reminderOn = 'reminder_on';
+
+  /// When the reminder fires, as `HH:mm` in local time. Stored as the wall
+  /// clock the user chose, not an instant, so it stays 21:00 across time zones
+  /// and daylight saving.
+  static const reminderTime = 'reminder_time';
+
+  static const all = {themeMode, reminderOn, reminderTime};
 }
 
 /// Opened once in `main()`, before the first frame, so reads are synchronous

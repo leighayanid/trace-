@@ -11,6 +11,8 @@ import '../../shared/widgets/trace_segmented.dart';
 import '../../core/config.dart';
 import '../insights/insights_screen.dart';
 import '../reading/reading_screen.dart';
+import '../reminder/reminder_providers.dart';
+import '../reminder/reminder_screen.dart';
 import 'about_screen.dart';
 import 'data_screen.dart';
 import 'sync_screen.dart';
@@ -23,6 +25,7 @@ class MoreScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.traceColors;
+    final reminder = ref.watch(reminderProvider);
 
     return Scaffold(
       backgroundColor: c.bg,
@@ -74,6 +77,20 @@ class MoreScreen extends ConsumerWidget {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  const SectionLabel('Reminder'),
+                  const SizedBox(height: TraceSpace.xs),
+                  // Carries its own state, so the one thing worth knowing —
+                  // whether anything will arrive, and when — does not need the
+                  // screen opened to read.
+                  _row(context, Icons.notifications_none_rounded,
+                      'Daily reminder', const ReminderScreen(),
+                      value: reminder.on ? reminder.time.format(context) : 'Off'),
+                ],
+              ).reveal(3),
+              const SizedBox(height: TraceSpace.section),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
                   const SectionLabel('Data'),
                   const SizedBox(height: TraceSpace.xs),
                   _row(context, Icons.download_outlined, 'Export and delete',
@@ -90,7 +107,7 @@ class MoreScreen extends ConsumerWidget {
                         const SyncScreen()),
                   ],
                 ],
-              ).reveal(3),
+              ).reveal(4),
               const SizedBox(height: TraceSpace.section),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -100,7 +117,7 @@ class MoreScreen extends ConsumerWidget {
                   _row(context, Icons.info_outline_rounded, 'How TRACE works',
                       const AboutScreen()),
                 ],
-              ).reveal(4),
+              ).reveal(5),
             ],
           ),
         ),
@@ -109,7 +126,12 @@ class MoreScreen extends ConsumerWidget {
   }
 
   Widget _row(
-      BuildContext context, IconData icon, String label, Widget destination) {
+    BuildContext context,
+    IconData icon,
+    String label,
+    Widget destination, {
+    String? value,
+  }) {
     final c = context.traceColors;
     return PressScale(
       onTap: () => Navigator.of(context).push(
@@ -125,6 +147,11 @@ class MoreScreen extends ConsumerWidget {
               child: Text(label,
                   style: TraceText.body.copyWith(color: c.textPrimary)),
             ),
+            if (value != null) ...[
+              Text(value,
+                  style: TraceText.mono.copyWith(color: c.textSecondary)),
+              const SizedBox(width: TraceSpace.sm),
+            ],
             Icon(Icons.chevron_right_rounded, size: 18, color: c.textSecondary),
           ],
         ),

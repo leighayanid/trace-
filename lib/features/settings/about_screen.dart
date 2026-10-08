@@ -69,6 +69,15 @@ class AboutScreen extends StatelessWidget {
               'percentage to be of, so only tracked time is shown.',
             ),
             const SizedBox(height: TraceSpace.section),
+            const SectionLabel('Notifications'),
+            const SizedBox(height: TraceSpace.md),
+            _para(
+              context,
+              'TRACE sends nothing until you ask it to. The one reminder it '
+              'offers arrives once a day, at an hour you choose, and only on a '
+              'day you have not written anything down on yet.',
+            ),
+            const SizedBox(height: TraceSpace.section),
             const SectionLabel('Your data'),
             const SizedBox(height: TraceSpace.md),
             _para(
